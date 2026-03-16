@@ -1,0 +1,65 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj": {}
+  },
+  "projects": {
+    "C:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj",
+        "projectName": "VietnamFoodGuide",
+        "projectPath": "C:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj",
+        "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
+        "outputPath": "C:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net4.8-windows"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net4.8-windows": {
+            "framework": "net48",
+            "targetAlias": "net4.8-windows",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net4.8-windows": {
+          "framework": "net48",
+          "targetAlias": "net4.8-windows",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.200\\RuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "win-x86": {
+          "#import": []
+        }
+      }
+    }
+  }
+}

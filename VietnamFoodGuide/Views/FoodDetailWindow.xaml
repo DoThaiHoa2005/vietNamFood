@@ -1,0 +1,101 @@
+﻿<Window x:Class="VietnamFoodGuide.Views.FoodDetailWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Chi tiết món ăn"
+        Height="750" Width="450"
+        Background="#F4F6F8"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <Style x:Key="BaseButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="45"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" CornerRadius="12">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RedButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="#E63946"/>
+        </Style>
+        <Style x:Key="GreenButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="#2A9D8F"/>
+        </Style>
+        <Style x:Key="BlueButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="#457B9D"/>
+        </Style>
+
+        <Style x:Key="LanguageRadioStyle" TargetType="RadioButton">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="1" CornerRadius="8" Padding="15,8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#457B9D"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#457B9D"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20">
+            <Border CornerRadius="20" Margin="0,0,0,20" Background="White">
+                <Image x:Name="FoodImage" Height="250" Stretch="UniformToFill" ClipToBounds="True"/>
+            </Border>
+
+            <TextBlock x:Name="FoodName" FontSize="28" FontWeight="Black" Foreground="#1D3557" TextWrapping="Wrap"/>
+
+            <Grid Margin="0,8,0,15">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <TextBlock Text="📍 " Foreground="#457B9D" FontSize="16"/>
+                    <TextBlock x:Name="FoodCity" FontSize="16" Foreground="#457B9D" FontWeight="SemiBold"/>
+                </StackPanel>
+                <TextBlock x:Name="FoodRating" FontSize="16" Foreground="#F4A261" FontWeight="Bold" HorizontalAlignment="Right"/>
+            </Grid>
+
+            <Border Background="White" CornerRadius="12" Padding="15" Margin="0,0,0,20">
+                <TextBlock x:Name="FoodDescription" FontSize="15" Foreground="#555555" TextWrapping="Wrap" LineHeight="24"/>
+            </Border>
+
+            <TextBlock Text="Chọn ngôn ngữ:" FontWeight="Bold" Foreground="#1D3557" Margin="0,0,0,5"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
+                <RadioButton x:Name="LangVN" Content="🇻🇳 Việt" GroupName="Lang" IsChecked="True" Style="{StaticResource LanguageRadioStyle}"/>
+                <RadioButton x:Name="LangEN" Content="🇺🇸 Anh" GroupName="Lang" Style="{StaticResource LanguageRadioStyle}"/>
+                <RadioButton x:Name="LangCN" Content="🇨🇳 Trung" GroupName="Lang" Style="{StaticResource LanguageRadioStyle}"/>
+            </StackPanel>
+
+            <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="📍 Bản đồ" Click="OpenMap" Style="{StaticResource GreenButtonStyle}"/>
+                <Button Grid.Column="2" Content="🔊 Thuyết minh" Click="SpeakVI" Style="{StaticResource BlueButtonStyle}"/>
+            </Grid>
+
+            <Button Content="⬅ Quay lại trang chủ" Click="Back_Click" Style="{StaticResource RedButtonStyle}" Margin="0,5,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

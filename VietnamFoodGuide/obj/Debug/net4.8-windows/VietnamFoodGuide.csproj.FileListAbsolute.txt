@@ -1,0 +1,9 @@
+C:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net4.8-windows\VietnamFoodGuide.csproj.AssemblyReference.cache
+C:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net4.8-windows\Views\FoodDetailWindow.g.cs
+C:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net4.8-windows\Views\MainWindow.g.cs
+C:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net4.8-windows\VietnamFoodGuide_MarkupCompile.cache
+C:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net4.8-windows\VietnamFoodGuide_MarkupCompile.lref
+C:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net4.8-windows\VietnamFoodGuide.GeneratedMSBuildEditorConfig.editorconfig
+C:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net4.8-windows\VietnamFoodGuide.AssemblyInfoInputs.cache
+C:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net4.8-windows\VietnamFoodGuide.AssemblyInfo.cs
+C:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net4.8-windows\VietnamFoodGuide.csproj.CoreCompileInputs.cache
