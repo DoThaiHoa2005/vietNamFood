@@ -1,0 +1,29 @@
+✅ ĐÃ THÊM TÍNH NĂNG GHI NHỚ TÀI KHOẢN
+
+📝 THAY ĐỔI:
+- File: VietnamFoodGuide/Views/LoginWindow.xaml.cs
+- Thêm: Lưu/Load username và password tự động
+- Mã hóa: XOR đơn giản để bảo vệ dữ liệu
+
+🎯 CÁCH DÙNG:
+1. Đăng nhập lần đầu
+2. Tích ✅ "Ghi nhớ tài khoản"
+3. Lần sau mở app → Tự động điền!
+
+🔧 BUILD:
+1. Đóng app đang chạy
+2. cd VietnamFoodGuide
+3. dotnet clean
+4. dotnet build
+5. dotnet run
+
+📁 FILE LƯU:
+%AppData%\VietnamFoodGuide\credentials.dat
+
+❌ XÓA THÔNG TIN:
+- Bỏ tích "Ghi nhớ" và đăng nhập lại
+- Hoặc xóa file credentials.dat
+
+📚 TÀI LIỆU:
+- Chi tiết: HUONG_DAN_GHI_NHO_TAI_KHOAN.md
+- Build: BUILD_GHI_NHO_TAI_KHOAN.md

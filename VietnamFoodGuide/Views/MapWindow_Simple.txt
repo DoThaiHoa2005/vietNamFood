@@ -1,0 +1,11 @@
+// Thay thế method BuildMapHtml trong MapWindow.xaml.cs bằng code đơn giản này:
+
+private string BuildMapHtml(string markersJson, double focusLat, double focusLng, double userLat, double userLng)
+{
+    // Bản đồ tĩnh đơn giản - không dùng Leaflet
+    LoadSimpleMap();
+    return "";
+}
+
+// Hoặc xóa hẳn method BuildMapHtml và trong LoadMapWithAllMarkers() thay bằng:
+// LoadSimpleMap();

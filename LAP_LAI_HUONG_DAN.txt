@@ -1,0 +1,78 @@
+✅ ĐÃ THÊM: ĐỌC LẠI HƯỚNG DẪN SAU 10 GIÂY
+
+🎯 CÁCH HOẠT ĐỘNG:
+
+1. Bắt đầu navigation
+   → Đọc: "Bắt đầu trên Nguyễn Huệ"
+
+2. Lưu vị trí hiện tại
+
+3. Đặt timer 10 giây
+
+4. Sau 10 giây:
+   - Nếu di chuyển < 10m → Đọc lại
+   - Nếu di chuyển > 10m → Không đọc lại
+
+5. Nếu đến step mới → Hủy timer
+
+🧪 TEST:
+
+Test 1: Không di chuyển
+  1. Bắt đầu navigation
+  2. Nghe: "Bắt đầu trên..."
+  3. Đứng yên
+  4. Sau 10s → Nghe lại: "Bắt đầu trên..."
+
+Test 2: Di chuyển một chút (< 10m)
+  1. Bắt đầu navigation
+  2. Nghe: "Bắt đầu trên..."
+  3. Di chuyển 5m
+  4. Sau 10s → Nghe lại: "Bắt đầu trên..."
+
+Test 3: Di chuyển nhiều (> 10m)
+  1. Bắt đầu navigation
+  2. Nghe: "Bắt đầu trên..."
+  3. Di chuyển 50m
+  4. Sau 10s → KHÔNG nghe lại
+
+Test 4: Đến step mới
+  1. Bắt đầu navigation
+  2. Nghe: "Bắt đầu trên..."
+  3. Di chuyển đến điểm rẽ
+  4. Nghe: "Rẽ trái vào..."
+  5. Sau 10s → KHÔNG nghe lại "Bắt đầu..."
+
+📝 CODE:
+
+var repeatVoiceTimer = null;
+var lastUserPosition = null;
+
+// Đặt timer 10s
+repeatVoiceTimer = setTimeout(function() {
+  if (isNavigating && currentStepIndex === 0) {
+    var distMoved = map.distance(lastUserPosition, currentPos);
+    if (distMoved < 10) {
+      sendVoiceNavigation(firstInstruction); // Đọc lại
+    }
+  }
+}, 10000);
+
+⚙️ CẤU HÌNH:
+
+Thời gian: 10 giây (có thể đổi thành 5s, 15s...)
+Ngưỡng: 10m (có thể đổi thành 5m, 20m...)
+
+🔧 BUILD:
+
+cd VietnamFoodGuide
+dotnet clean
+dotnet build
+dotnet run
+
+📚 CHI TIẾT:
+
+Xem file: GIONG_NOI_LAP_LAI.md
+
+🎉 KẾT QUẢ:
+
+Giống Google Maps 100%!

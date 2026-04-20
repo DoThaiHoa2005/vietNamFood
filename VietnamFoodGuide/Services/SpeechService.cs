@@ -1,74 +1,96 @@
-﻿using System;
-using System.IO;
-using System.Net.Http;
-using System.Threading.Tasks;
-using NAudio.Wave;
-using System.Text.RegularExpressions; // Thêm thư viện này để dọn dẹp văn bản
+using System;
+using System.Speech.Synthesis;
+using System.Linq;
+using System.Media;
 
 namespace VietnamFoodGuide.Services
 {
     public class SpeechService : IDisposable
     {
-        private IWavePlayer waveOut;
-        private Mp3FileReader mp3Reader;
-        private readonly HttpClient httpClient = new HttpClient();
+        private SpeechSynthesizer _synthesizer;
+        private bool isPlaying = false;
+
+        public event Action OnPlaybackStarted;
+        public event Action OnPlaybackCompleted;
+        public event Action<string> OnError;
 
         public SpeechService()
         {
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-        }
-
-        public async void Speak(string text, string cultureCode)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return;
-            Stop();
-
-            // 1. Làm sạch văn bản: Loại bỏ ký tự xuống dòng, tab để tránh lỗi URL
-            string cleanText = Regex.Replace(text, @"\s+", " ").Trim();
-
-            // 2. Giới hạn độ dài (Google TTS chỉ nhận dưới ~200 ký tự mỗi request)
-            if (cleanText.Length > 180) cleanText = cleanText.Substring(0, 180);
-
-            string lang = cultureCode.Substring(0, 2);
-            string encodedText = Uri.EscapeDataString(cleanText);
-            string url = $"https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl={lang}&q={encodedText}";
-
             try
             {
-                byte[] data = await httpClient.GetByteArrayAsync(url);
-                var ms = new MemoryStream(data);
+                _synthesizer = new SpeechSynthesizer();
+                
+                // DIAGNOSTIC: List all voices
+                System.Diagnostics.Debug.WriteLine("--- VOICES INSTALLED ON SYSTEM ---");
+                foreach (var v in _synthesizer.GetInstalledVoices())
+                {
+                    System.Diagnostics.Debug.WriteLine($"Found Voice: {v.VoiceInfo.Name} ({v.VoiceInfo.Culture})");
+                }
+                System.Diagnostics.Debug.WriteLine("-----------------------------------");
 
-                // Dùng NAudio để phát MP3 từ MemoryStream
-                mp3Reader = new Mp3FileReader(ms);
-                waveOut = new WaveOutEvent();
-                waveOut.Init(mp3Reader);
-                waveOut.Play();
+                _synthesizer.SpeakStarted += (s, e) => { isPlaying = true; OnPlaybackStarted?.Invoke(); };
+                _synthesizer.SpeakCompleted += (s, e) => { isPlaying = false; OnPlaybackCompleted?.Invoke(); };
+                
+                System.Diagnostics.Debug.WriteLine("✅ [SpeechService] Khởi tạo System.Speech thành công");
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show("Lỗi thuyết minh: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine($"❌ [SpeechService] Lỗi khởi tạo: {ex.Message}");
+            }
+        }
+
+        public void Speak(string text, string cultureCode)
+        {
+            System.Diagnostics.Debug.WriteLine($"🔊 [SpeechService] Speak Request: {text} ({cultureCode})");
+            
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            try
+            {
+                // BEEP TEST: Play a sound regardless of voice availability
+                SystemSounds.Beep.Play();
+
+                _synthesizer.SpeakAsyncCancelAll();
+
+                // 1. Try exact match (e.g. vi-VN, en-US)
+                var voice = _synthesizer.GetInstalledVoices()
+                    .OrderByDescending(v => v.VoiceInfo.Culture.Name.Equals(cultureCode, StringComparison.OrdinalIgnoreCase))
+                    .ThenByDescending(v => v.VoiceInfo.Culture.Name.StartsWith(cultureCode.Split('-')[0], StringComparison.OrdinalIgnoreCase))
+                    .FirstOrDefault(v => v.Enabled);
+
+                if (voice != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"🎙️ [SpeechService] Selected voice: {voice.VoiceInfo.Name}");
+                    _synthesizer.SelectVoice(voice.VoiceInfo.Name);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ [SpeechService] No matching voice found! Using default system voice.");
+                }
+
+                _synthesizer.Volume = 100;
+                _synthesizer.Rate = 0;
+                _synthesizer.SpeakAsync(text);
+            }
+            catch (Exception ex)
+            {
+                isPlaying = false;
+                System.Diagnostics.Debug.WriteLine($"❌ [SpeechService] Speak Error: {ex.Message}");
+                OnError?.Invoke(ex.Message);
             }
         }
 
         public void Stop()
         {
-            if (waveOut != null)
-            {
-                waveOut.Stop();
-                waveOut.Dispose();
-                waveOut = null;
-            }
-            if (mp3Reader != null)
-            {
-                mp3Reader.Dispose();
-                mp3Reader = null;
-            }
+            _synthesizer?.SpeakAsyncCancelAll();
+            isPlaying = false;
         }
+
+        public bool IsPlaying => isPlaying;
 
         public void Dispose()
         {
-            Stop();
-            httpClient.Dispose();
+            _synthesizer?.Dispose();
         }
     }
 }

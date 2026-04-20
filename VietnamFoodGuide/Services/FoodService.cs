@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
@@ -29,7 +29,9 @@ namespace VietnamFoodGuide.Services
                     PropertyNameCaseInsensitive = true
                 };
 
-                return JsonSerializer.Deserialize<List<FoodItem>>(json, options) ?? new List<FoodItem>();
+                var foods = JsonSerializer.Deserialize<List<FoodItem>>(json, options) ?? new List<FoodItem>();
+                
+                return foods;
             }
             catch (Exception ex)
             {

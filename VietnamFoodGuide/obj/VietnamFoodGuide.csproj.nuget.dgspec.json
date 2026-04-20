@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj": {}
+    "E:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj": {}
   },
   "projects": {
-    "C:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj": {
+    "E:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj",
+        "projectUniqueName": "E:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj",
         "projectName": "VietnamFoodGuide",
-        "projectPath": "C:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj",
+        "projectPath": "E:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\VietnamFoodGuide.csproj",
         "packagesPath": "C:\\Users\\admin\\.nuget\\packages\\",
-        "outputPath": "C:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\obj\\",
+        "outputPath": "E:\\IT\\C#\\Đồ án c#\\VietnamFoodGuide\\VietnamFoodGuide\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -31,7 +31,6 @@
         },
         "frameworks": {
           "net48": {
-            "framework": "net48",
             "targetAlias": "net48",
             "projectReferences": {}
           }
@@ -50,12 +49,23 @@
       },
       "frameworks": {
         "net48": {
-          "framework": "net48",
           "targetAlias": "net48",
           "dependencies": {
+            "BCrypt.Net-Next": {
+              "target": "Package",
+              "version": "[4.0.3, )"
+            },
+            "Microsoft.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[3.1.32, )"
+            },
+            "Microsoft.Extensions.Configuration.Json": {
+              "target": "Package",
+              "version": "[3.1.32, )"
+            },
             "Microsoft.Web.WebView2": {
               "target": "Package",
-              "version": "[1.0.3800.47, )"
+              "version": "[1.0.3856.49, )"
             },
             "NAudio": {
               "target": "Package",
@@ -65,12 +75,16 @@
               "target": "Package",
               "version": "[13.0.4, )"
             },
+            "Pomelo.EntityFrameworkCore.MySql": {
+              "target": "Package",
+              "version": "[3.2.5, )"
+            },
             "System.Text.Json": {
               "target": "Package",
               "version": "[10.0.5, )"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.200\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201\\RuntimeIdentifierGraph.json"
         }
       },
       "runtimes": {

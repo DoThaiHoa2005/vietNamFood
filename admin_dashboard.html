@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vietnam Food Guide - Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #E63946;
+            --primary-dark: #d63946;
+            --secondary: #457B9D;
+            --success: #2d7a4f;
+            --warning: #f59e0b;
+            --danger: #dc2626;
+            --dark: #1a1a2e;
+            --light: #f8f9fa;
+            --border: #e0e0e0;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 260px;
+            height: 100vh;
+            background: var(--dark);
+            color: white;
+            padding: 20px 0;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.3s;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header h2 {
+            color: var(--primary);
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: rgba(255,255,255,0.8);
+            border-left: 3px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.05);
+            color: white;
+        }
+
+        .menu-item.active {
+            background: rgba(230, 57, 70, 0.1);
+            color: var(--primary);
+            border-left-color: var(--primary);
+        }
+
+        .menu-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 260px;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title h1 {
+            color: var(--primary);
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header-title p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+
+        .stat-icon.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .stat-icon.success { background: linear-gradient(135deg, #2d7a4f 0%, #48bb78 100%); }
+        .stat-icon.warning { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
+        .stat-icon.danger { background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); }
+
+        .stat-info h3 {
+            font-size: 32px;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+
+        .stat-info p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Content Card */
+        .content-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--light);
+        }
+
+        .card-header h2 {
+            color: var(--dark);
+            font-size: 20px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: var(--light);
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--dark);
+            border-bottom: 2px solid var(--border);
+            font-size: 14px;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        /* Search & Filter */
+        .search-filter {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .search-box i {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+
+        select {
+            padding: 12px 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(40px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 25px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            color: var(--dark);
+            font-size: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .modal-close:hover {
+            background: var(--light);
+            color: var(--dark);
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .modal-footer {
+            padding: 20px 25px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        /* Language Tabs */
+        .lang-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .lang-tab {
+            padding: 12px 24px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+        }
+
+        .lang-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .lang-panel {
+            display: none;
+        }
+
+        .lang-panel.active {
+            display: block;
+        }
+
+        /* Image Upload */
+        .image-upload {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .image-upload:hover {
+            border-color: var(--primary);
+            background: rgba(230, 57, 70, 0.02);
+        }
+
+        .image-upload input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 12px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .image-preview.show {
+            display: block;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: var(--success);
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: var(--danger);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--dark);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            z-index: 3000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .loading i {
+            font-size: 32px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Section */
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .search-filter {
+                flex-direction: column;
+            }
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #666;
+        }
+
+        /* Tracking Styles */
+        .tracking-user-item {
+            background: #f8f9fa;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tracking-user-item:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(230, 57, 70, 0.1);
+        }
+
+        .tracking-user-item.active {
+            border-color: var(--primary);
+            background: rgba(230, 57, 70, 0.05);
+        }
+
+        .tracking-user-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .tracking-user-name {
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 14px;
+        }
+
+        .tracking-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .tracking-user-info {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 3px;
+        }
+
+        .tracking-destination {
+            font-size: 12px;
+            color: var(--primary);
+            font-weight: 500;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2><i class="fas fa-utensils"></i> VFG Admin</h2>
+            <p>Vietnam Food Guide</p>
+        </div>
+        <div class="sidebar-menu">
+            <div class="menu-item active" data-section="dashboard">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </div>
+            <div class="menu-item" data-section="foods">
+                <i class="fas fa-bowl-food"></i>
+                <span>Quán Ăn</span>
+            </div>
+            <div class="menu-item" data-section="users">
+                <i class="fas fa-users"></i>
+                <span>Người Dùng</span>
+            </div>
+            <div class="menu-item" data-section="analytics">
+                <i class="fas fa-chart-pie"></i>
+                <span>Thống Kê</span>
+            </div>
+            <div class="menu-item" data-section="tracking">
+                <i class="fas fa-map-marked-alt"></i>
+                <span>User Tracking</span>
+            </div>
+            <div class="menu-item" data-section="favorites">
+                <i class="fas fa-heart"></i>
+                <span>Yêu Thích</span>
+            </div>
+            <div class="menu-item" data-section="settings">
+                <i class="fas fa-cog"></i>
+                <span>Cài Đặt</span>
+            </div>
+        </div>
+        
+        <!-- Logout Button at Bottom -->
+        <div style="position: absolute; bottom: 20px; left: 0; right: 0; padding: 0 20px;">
+            <div class="menu-item" onclick="logout()" style="background: rgba(220, 38, 38, 0.1); color: #dc2626; border-radius: 8px;">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Đăng Xuất</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title">
+                <h1>Vietnam Food Guide</h1>
+                <p>Quản lý hệ thống hướng dẫn ẩm thực</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openAddFoodModal()">
+                    <i class="fas fa-plus"></i> Thêm Quán Ăn
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="section active">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon primary">
+                        <i class="fas fa-bowl-food"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalFoods">0</h3>
+                        <p>Tổng Quán Ăn</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon success">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalUsers">0</h3>
+                        <p>Người Dùng</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon warning">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="avgRating">0</h3>
+                        <p>Đánh Giá TB</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon danger">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalFavorites">0</h3>
+                        <p>Yêu Thích</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Foods -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-clock"></i> Quán Ăn Mới Nhất</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="switchSection('foods')">
+                        Xem Tất Cả <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tên Quán</th>
+                                <th>Thành Phố</th>
+                                <th>Danh Mục</th>
+                                <th>Đánh Giá</th>
+                                <th>Hành Động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentFoodsBody">
+                            <tr>
+                                <td colspan="5" class="loading">
+                                    <i class="fas fa-spinner"></i>
+                                    <p>Đang tải dữ liệu...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Foods Section -->
+        <div id="foods" class="section">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-bowl-food"></i> Quản Lý Quán Ăn</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-success btn-sm" onclick="exportFoods()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <button class="btn btn-primary" onclick="openAddFoodModal()">
+                            <i class="fas fa-plus"></i> Thêm Mới
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search & Filter -->
+                <div class="search-filter">
+                    <div class="search-box">
+                        <input type="text" id="searchFood" placeholder="Tìm kiếm quán ăn..." onkeyup="searchFoods()">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <select id="filterCategory" onchange="filterFoods()">
+                        <option value="">Tất cả danh mục</option>
+                        <option value="Phở">Phở</option>
+                        <option value="Bún">Bún</option>
+                        <option value="Cơm">Cơm</option>
+                        <option value="Bánh Mì">Bánh Mì</option>
+                        <option value="Bánh Khác">Bánh Khác</option>
+                        <option value="Thức uống">Thức uống</option>
+                    </select>
+                    <select id="sortBy" onchange="sortFoods()">
+                        <option value="name">Tên A-Z</option>
+                        <option value="rating">Đánh giá cao</option>
+                        <option value="newest">Mới nhất</option>
+                    </select>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tên Quán</th>
+                                <th>Thành Phố</th>
+                                <th>Danh Mục</th>
+                                <th>Đánh Giá</th>
+                                <th>Tọa Độ</th>
+                                <th>Hành Động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="foodsBody">
+                            <tr>
+                                <td colspan="7" class="loading">
+                                    <i class="fas fa-spinner"></i>
+                                    <p>Đang tải dữ liệu...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Section -->
+        <div id="users" class="section">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-users"></i> Quản Lý Người Dùng</h2>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Ngày Tạo</th>
+                                <th>Trạng Thái</th>
+                                <th>Hành Động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersBody">
+                            <tr>
+                                <td colspan="6" class="loading">
+                                    <i class="fas fa-spinner"></i>
+                                    <p>Đang tải dữ liệu...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Section -->
+        <div id="analytics" class="section">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-pie"></i> Thống Kê & Phân Tích</h2>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="topRatedName">--</h3>
+                            <p>Quán Đánh Giá Cao Nhất</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="popularCategory">--</h3>
+                            <p>Danh Mục Phổ Biến</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Tracking Section -->
+        <div id="tracking" class="section">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-map-marked-alt"></i> User Tracking - Theo Dõi Người Dùng</h2>
+                    <button class="btn btn-primary btn-sm" onclick="refreshTracking()">
+                        <i class="fas fa-sync"></i> Làm Mới
+                    </button>
+                </div>
+
+                <!-- Tracking Stats -->
+                <div class="stats-grid" style="margin-bottom: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="fas fa-qrcode"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="qrScannedUsers">0</h3>
+                            <p>Quét QR Code</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="appInstalledUsers">0</h3>
+                            <p>Đã Cài App</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="trackingOnline">0</h3>
+                            <p>Đang Online</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="fas fa-route"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="trackingNavigating">0</h3>
+                            <p>Đang Chỉ Đường</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map and User List -->
+                <div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px; height: 600px;">
+                    <!-- User List -->
+                    <div style="border: 1px solid var(--border); border-radius: 12px; overflow-y: auto; padding: 15px;">
+                        <h3 style="margin-bottom: 15px; color: var(--dark);">👥 Người Dùng Online</h3>
+                        <div id="trackingUserList">
+                            <div class="loading">Đang tải...</div>
+                        </div>
+                    </div>
+
+                    <!-- Map -->
+                    <div style="position: relative; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+                        <div id="trackingMap" style="width: 100%; height: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Favorites Section -->
+        <div id="favorites" class="section">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-heart"></i> Quản Lý Yêu Thích</h2>
+                </div>
+
+                <!-- Favorites Stats -->
+                <div class="stats-grid" style="margin-bottom: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-icon danger">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="favoritesTotal">0</h3>
+                            <p>Tổng Yêu Thích</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="fas fa-crown"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="favoritesTopFood">--</h3>
+                            <p>Quán Được Yêu Thích Nhất</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="fas fa-user-heart"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="favoritesActiveUsers">0</h3>
+                            <p>Người Dùng Có Yêu Thích</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Người Dùng</th>
+                                <th>Quán Ăn</th>
+                                <th>Danh Mục</th>
+                                <th>Ngày Yêu Thích</th>
+                                <th>Hành Động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="favoritesBody">
+                            <tr>
+                                <td colspan="6" class="loading">
+                                    <i class="fas fa-spinner"></i>
+                                    <p>Đang tải dữ liệu...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div id="settings" class="section">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-cog"></i> Cài Đặt Hệ Thống</h2>
+                </div>
+
+                <div class="form-group">
+                    <label>API Endpoint</label>
+                    <input type="text" id="apiEndpoint" value="http://localhost/vfg-api/api.php" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Database</label>
+                    <input type="text" value="VietnamFoodGuide" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Ngôn Ngữ Hỗ Trợ</label>
+                    <div style="display: flex; gap: 10px;">
+                        <span class="badge badge-success">🇻🇳 Tiếng Việt</span>
+                        <span class="badge badge-success">🇺🇸 English</span>
+                        <span class="badge badge-success">🇨🇳 中文</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="testConnection()">
+                    <i class="fas fa-plug"></i> Test Kết Nối API
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Food Modal -->
+    <div class="modal" id="foodModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle"><i class="fas fa-edit"></i> Chỉnh Sửa Quán Ăn</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId">
+
+                <!-- Basic Info -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-store"></i> Tên Quán *</label>
+                        <input type="text" id="editName" placeholder="Nhập tên quán ăn" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-city"></i> Thành Phố *</label>
+                        <input type="text" id="editCity" placeholder="TP.HCM - Vĩnh Khánh">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-list"></i> Danh Mục *</label>
+                        <select id="editCategory">
+                            <option value="Phở">Phở</option>
+                            <option value="Bún">Bún</option>
+                            <option value="Cơm">Cơm</option>
+                            <option value="Bánh Mì">Bánh Mì</option>
+                            <option value="Bánh Khác">Bánh Khác</option>
+                            <option value="Thức uống">Thức uống</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-star"></i> Đánh Giá (1-5)</label>
+                        <input type="number" id="editRating" min="1" max="5" step="0.1" value="4.5">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-map-marker-alt"></i> Vĩ Độ</label>
+                        <input type="number" id="editLat" step="0.00001" placeholder="10.78024">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-map-marker-alt"></i> Kinh Độ</label>
+                        <input type="number" id="editLng" step="0.00001" placeholder="106.70532">
+                    </div>
+                </div>
+
+                <!-- Image Upload -->
+                <div class="form-group">
+                    <label><i class="fas fa-image"></i> Hình Ảnh</label>
+                    <div class="image-upload" onclick="document.getElementById('imageFile').click()">
+                        <input type="file" id="imageFile" accept="image/*" onchange="previewImage(event)">
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: #ccc;"></i>
+                        <p>Click để chọn ảnh hoặc kéo thả vào đây</p>
+                        <p style="font-size: 12px; color: #999;">JPG, PNG, WebP (Max 5MB)</p>
+                    </div>
+                    <img id="imagePreview" class="image-preview">
+                    <input type="text" id="editImage" placeholder="Hoặc nhập URL ảnh" style="margin-top: 10px;">
+                </div>
+
+                <!-- Descriptions -->
+                <div class="form-group">
+                    <label><i class="fas fa-align-left"></i> Mô Tả</label>
+                    <div class="lang-tabs">
+                        <button class="lang-tab active" onclick="switchLang('vi')">
+                            🇻🇳 Tiếng Việt
+                        </button>
+                        <button class="lang-tab" onclick="switchLang('en')">
+                            🇺🇸 English
+                        </button>
+                        <button class="lang-tab" onclick="switchLang('cn')">
+                            🇨🇳 中文
+                        </button>
+                    </div>
+
+                    <div id="lang-vi" class="lang-panel active">
+                        <textarea id="editDescVI" placeholder="Nhập mô tả bằng tiếng Việt..." rows="4"></textarea>
+                    </div>
+                    <div id="lang-en" class="lang-panel">
+                        <textarea id="editDescEN" placeholder="Enter description in English..." rows="4"></textarea>
+                    </div>
+                    <div id="lang-cn" class="lang-panel">
+                        <textarea id="editDescCN" placeholder="请输入中文描述..." rows="4"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">
+                    <i class="fas fa-times"></i> Hủy
+                </button>
+                <button class="btn btn-primary" onclick="saveFood()">
+                    <i class="fas fa-save"></i> Lưu Thay Đổi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ============================================================
+        // Configuration
+        // ============================================================
+        const API_BASE = './api.php';
+        const TRACKING_API = './api.php';
+        let allFoods = [];
+        let filteredFoods = [];
+        let trackingMap = null;
+        let trackingMarkers = {};
+        let trackingRoutes = {};
+        let trackingInterval = null;
+
+        // ============================================================
+        // Initialize
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadFoods();
+            initMenuNavigation();
+        });
+
+        // ============================================================
+        // Menu Navigation
+        // ============================================================
+        function initMenuNavigation() {
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const section = item.getAttribute('data-section');
+                    switchSection(section);
+                });
+            });
+        }
+
+        function switchSection(sectionName) {
+            // Update menu
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-section') === sectionName) {
+                    item.classList.add('active');
+                }
+            });
+
+            // Update content
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionName).classList.add('active');
+
+            // Load data for specific sections
+            if (sectionName === 'users') loadUsers();
+            if (sectionName === 'analytics') loadAnalytics();
+            if (sectionName === 'tracking') initTracking();
+            if (sectionName === 'favorites') loadFavorites();
+        }
+
+        // ============================================================
+        // Load Stats
+        // ============================================================
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API_BASE}?action=stats`);
+                const data = await res.json();
+                
+                document.getElementById('totalFoods').textContent = data.totalFoods || 0;
+                document.getElementById('totalUsers').textContent = data.totalUsers || 0;
+                document.getElementById('avgRating').textContent = data.avgRating ? '⭐ ' + data.avgRating : '0';
+                document.getElementById('totalFavorites').textContent = data.totalFavorites || 0;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // ============================================================
+        // Load Foods
+        // ============================================================
+        async function loadFoods() {
+            try {
+                const res = await fetch(`${API_BASE}?action=foods`);
+                allFoods = await res.json();
+                filteredFoods = [...allFoods];
+                
+                renderFoodsTable(allFoods);
+                renderRecentFoods(allFoods.slice(0, 5));
+            } catch (error) {
+                console.error('Error loading foods:', error);
+                showToast('Lỗi tải dữ liệu quán ăn', 'error');
+            }
+        }
+
+        function renderFoodsTable(foods) {
+            const tbody = document.getElementById('foodsBody');
+            
+            if (!foods || foods.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <h3>Chưa có dữ liệu</h3>
+                            <p>Thêm quán ăn mới để bắt đầu</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = foods.map(food => `
+                <tr>
+                    <td><strong>#${food.Id}</strong></td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            ${food.ImagePath ? `<img src="${food.ImagePath}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">` : '<i class="fas fa-image" style="font-size: 24px; color: #ccc;"></i>'}
+                            <strong>${food.Name}</strong>
+                        </div>
+                    </td>
+                    <td>${food.City}</td>
+                    <td><span class="badge badge-success">${food.Category}</span></td>
+                    <td>⭐ ${food.Rating}</td>
+                    <td style="font-size: 12px; color: #666;">${food.Latitude.toFixed(4)}, ${food.Longitude.toFixed(4)}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="editFood(${food.Id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteFood(${food.Id}, '${food.Name}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderRecentFoods(foods) {
+            const tbody = document.getElementById('recentFoodsBody');
+            
+            if (!foods || foods.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><i class="fas fa-inbox"></i><p>Chưa có dữ liệu</p></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = foods.map(food => `
+                <tr>
+                    <td><strong>${food.Name}</strong></td>
+                    <td>${food.City}</td>
+                    <td><span class="badge badge-success">${food.Category}</span></td>
+                    <td>⭐ ${food.Rating}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="editFood(${food.Id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ============================================================
+        // Search & Filter
+        // ============================================================
+        function searchFoods() {
+            const query = document.getElementById('searchFood').value.toLowerCase();
+            filteredFoods = allFoods.filter(food =>
+                food.Name.toLowerCase().includes(query) ||
+                food.City.toLowerCase().includes(query) ||
+                food.Category.toLowerCase().includes(query)
+            );
+            renderFoodsTable(filteredFoods);
+        }
+
+        function filterFoods() {
+            const category = document.getElementById('filterCategory').value;
+            filteredFoods = category ? allFoods.filter(f => f.Category === category) : [...allFoods];
+            renderFoodsTable(filteredFoods);
+        }
+
+        function sortFoods() {
+            const sortBy = document.getElementById('sortBy').value;
+            
+            if (sortBy === 'name') {
+                filteredFoods.sort((a, b) => a.Name.localeCompare(b.Name));
+            } else if (sortBy === 'rating') {
+                filteredFoods.sort((a, b) => b.Rating - a.Rating);
+            } else if (sortBy === 'newest') {
+                filteredFoods.sort((a, b) => b.Id - a.Id);
+            }
+            
+            renderFoodsTable(filteredFoods);
+        }
+
+        // ============================================================
+        // Modal Functions
+        // ============================================================
+        function openAddFoodModal() {
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus"></i> Thêm Quán Ăn Mới';
+            document.getElementById('editId').value = '';
+            document.getElementById('editName').value = '';
+            document.getElementById('editCity').value = 'TP.HCM - Vĩnh Khánh';
+            document.getElementById('editCategory').value = 'Phở';
+            document.getElementById('editRating').value = '4.5';
+            document.getElementById('editLat').value = '';
+            document.getElementById('editLng').value = '';
+            document.getElementById('editImage').value = '';
+            document.getElementById('editDescVI').value = '';
+            document.getElementById('editDescEN').value = '';
+            document.getElementById('editDescCN').value = '';
+            document.getElementById('imagePreview').classList.remove('show');
+            
+            document.getElementById('foodModal').classList.add('show');
+        }
+
+        function editFood(id) {
+            const food = allFoods.find(f => f.Id === id);
+            if (!food) return;
+
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Chỉnh Sửa: ' + food.Name;
+            document.getElementById('editId').value = food.Id;
+            document.getElementById('editName').value = food.Name;
+            document.getElementById('editCity').value = food.City;
+            document.getElementById('editCategory').value = food.Category;
+            document.getElementById('editRating').value = food.Rating;
+            document.getElementById('editLat').value = food.Latitude;
+            document.getElementById('editLng').value = food.Longitude;
+            document.getElementById('editImage').value = food.ImagePath || '';
+            document.getElementById('editDescVI').value = food.Description_VI || '';
+            document.getElementById('editDescEN').value = food.Description_EN || '';
+            document.getElementById('editDescCN').value = food.Description_CN || '';
+
+            if (food.ImagePath) {
+                const preview = document.getElementById('imagePreview');
+                preview.src = food.ImagePath;
+                preview.classList.add('show');
+            }
+
+            document.getElementById('foodModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('foodModal').classList.remove('show');
+        }
+
+        function switchLang(lang) {
+            document.querySelectorAll('.lang-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.lang-panel').forEach(panel => panel.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById('lang-' + lang).classList.add('active');
+        }
+
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                const preview = document.getElementById('imagePreview');
+                preview.src = e.target.result;
+                preview.classList.add('show');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ============================================================
+        // Save Food
+        // ============================================================
+        async function saveFood() {
+            const id = document.getElementById('editId').value;
+            const name = document.getElementById('editName').value.trim();
+
+            if (!name) {
+                showToast('Vui lòng nhập tên quán', 'error');
+                return;
+            }
+
+            // Upload image if file selected
+            let imagePath = document.getElementById('editImage').value.trim();
+            const fileInput = document.getElementById('imageFile');
+            if (fileInput.files.length > 0) {
+                const uploadedUrl = await uploadImage(fileInput.files[0]);
+                if (uploadedUrl) imagePath = uploadedUrl;
+            }
+
+            const payload = {
+                Name: name,
+                City: document.getElementById('editCity').value.trim(),
+                Category: document.getElementById('editCategory').value,
+                Rating: parseFloat(document.getElementById('editRating').value) || 4.5,
+                Latitude: parseFloat(document.getElementById('editLat').value) || 0,
+                Longitude: parseFloat(document.getElementById('editLng').value) || 0,
+                ImagePath: imagePath,
+                Description_VI: document.getElementById('editDescVI').value.trim(),
+                Description_EN: document.getElementById('editDescEN').value.trim(),
+                Description_CN: document.getElementById('editDescCN').value.trim(),
+            };
+
+            try {
+                let res;
+                if (id) {
+                    res = await fetch(`${API_BASE}?action=food&id=${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    res = await fetch(`${API_BASE}?action=foods`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                const result = await res.json();
+                showToast(id ? '✅ Cập nhật thành công!' : '✅ Thêm quán thành công!', 'success');
+                closeModal();
+                loadFoods();
+                loadStats();
+            } catch (error) {
+                showToast('❌ Lỗi: ' + error.message, 'error');
+            }
+        }
+
+        async function uploadImage(file) {
+            try {
+                const formData = new FormData();
+                formData.append('image', file);
+                const res = await fetch(`${API_BASE}?action=upload`, { method: 'POST', body: formData });
+                const data = await res.json();
+                return data.url || null;
+            } catch {
+                return null;
+            }
+        }
+
+        async function deleteFood(id, name) {
+            if (!confirm(`Xóa quán "${name}"?`)) return;
+
+            try {
+                await fetch(`${API_BASE}?action=food&id=${id}`, { method: 'DELETE' });
+                showToast('✅ Đã xóa thành công', 'success');
+                loadFoods();
+                loadStats();
+            } catch (error) {
+                showToast('❌ Lỗi xóa: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        // Users Management
+        // ============================================================
+        async function loadUsers() {
+            try {
+                const res = await fetch(`${API_BASE}?action=users`);
+                const users = await res.json();
+                renderUsersTable(users);
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+
+        function renderUsersTable(users) {
+            const tbody = document.getElementById('usersBody');
+            
+            if (!users || users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-users"></i><p>Chưa có người dùng</p></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td><strong>#${user.Id}</strong></td>
+                    <td><i class="fas fa-user"></i> ${user.Username}</td>
+                    <td><span class="badge ${user.Role === 'Admin' ? 'badge-danger' : 'badge-success'}">${user.Role}</span></td>
+                    <td>${new Date(user.CreatedDate).toLocaleDateString('vi-VN')}</td>
+                    <td><span class="badge badge-success"><i class="fas fa-check-circle"></i> Active</span></td>
+                    <td>
+                        <select onchange="changeUserRole(${user.Id}, this.value)" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);">
+                            <option value="">Đổi role</option>
+                            <option value="User">→ User</option>
+                            <option value="Admin">→ Admin</option>
+                        </select>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function changeUserRole(userId, newRole) {
+            if (!newRole) return;
+            if (!confirm(`Đổi role user này thành ${newRole}?`)) return;
+
+            try {
+                const res = await fetch(`${API_BASE}?action=update_user_role`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, role: newRole })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('✅ Cập nhật role thành công', 'success');
+                    loadUsers();
+                }
+            } catch (error) {
+                showToast('❌ Lỗi cập nhật', 'error');
+            }
+        }
+
+        // ============================================================
+        // Analytics
+        // ============================================================
+        function loadAnalytics() {
+            if (!allFoods.length) return;
+
+            const topFood = allFoods.reduce((a, b) => a.Rating > b.Rating ? a : b);
+            document.getElementById('topRatedName').textContent = topFood.Name;
+
+            const categories = {};
+            allFoods.forEach(f => {
+                categories[f.Category] = (categories[f.Category] || 0) + 1;
+            });
+
+            const popCat = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];
+            document.getElementById('popularCategory').textContent = popCat ? `${popCat[0]} (${popCat[1]})` : '--';
+        }
+
+        // ============================================================
+        // Utilities
+        // ============================================================
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => toast.className = 'toast', 3000);
+        }
+
+        function exportFoods() {
+            const blob = new Blob([JSON.stringify(allFoods, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'foods_export_' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            showToast('✅ Đã export dữ liệu', 'success');
+        }
+
+        async function testConnection() {
+            try {
+                const res = await fetch(`${API_BASE}?action=stats`);
+                if (res.ok) {
+                    showToast('✅ Kết nối API thành công!', 'success');
+                } else {
+                    showToast('❌ Kết nối thất bại', 'error');
+                }
+            } catch (error) {
+                showToast('❌ Không thể kết nối: ' + error.message, 'error');
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('foodModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // ============================================================
+        // Favorites Management
+        // ============================================================
+        async function loadFavorites() {
+            try {
+                const res = await fetch(`${TRACKING_API}?action=getFavorites`);
+                const data = await res.json();
+                const favorites = data.data || [];
+                
+                // Load users and foods for display
+                const usersRes = await fetch(`${TRACKING_API}?action=getUsers`);
+                const usersData = await usersRes.json();
+                const users = usersData.data || [];
+                
+                const foodsRes = await fetch(`${API_BASE}?action=foods`);
+                const foods = await foodsRes.json();
+                
+                renderFavoritesTable(favorites, users, foods);
+                updateFavoritesStats(favorites, users, foods);
+            } catch (error) {
+                console.error('Error loading favorites:', error);
+            }
+        }
+
+        function renderFavoritesTable(favorites, users, foods) {
+            const tbody = document.getElementById('favoritesBody');
+            
+            if (!favorites || favorites.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <i class="fas fa-heart-broken"></i>
+                            <h3>Chưa có yêu thích nào</h3>
+                            <p>Người dùng chưa yêu thích quán ăn nào</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = favorites.map(fav => {
+                const user = users.find(u => u.Id === fav.UserId);
+                const food = foods.find(f => f.Id === fav.FoodId);
+                
+                return `
+                    <tr>
+                        <td><strong>#${fav.Id}</strong></td>
+                        <td>
+                            <i class="fas fa-user"></i> 
+                            ${user ? user.Username : `User ${fav.UserId}`}
+                        </td>
+                        <td>
+                            <strong>${food ? food.Name : `Food ${fav.FoodId}`}</strong>
+                        </td>
+                        <td>
+                            ${food ? `<span class="badge badge-success">${food.Category}</span>` : '--'}
+                        </td>
+                        <td>${new Date(fav.CreatedDate).toLocaleDateString('vi-VN')}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteFavorite(${fav.Id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateFavoritesStats(favorites, users, foods) {
+            document.getElementById('favoritesTotal').textContent = favorites.length;
+            
+            // Find most favorited food
+            const foodCounts = {};
+            favorites.forEach(fav => {
+                foodCounts[fav.FoodId] = (foodCounts[fav.FoodId] || 0) + 1;
+            });
+            
+            const topFoodId = Object.entries(foodCounts).sort((a, b) => b[1] - a[1])[0];
+            const topFood = topFoodId ? foods.find(f => f.Id == topFoodId[0]) : null;
+            document.getElementById('favoritesTopFood').textContent = topFood ? topFood.Name : '--';
+            
+            // Count users with favorites
+            const usersWithFavorites = new Set(favorites.map(f => f.UserId)).size;
+            document.getElementById('favoritesActiveUsers').textContent = usersWithFavorites;
+        }
+
+        async function deleteFavorite(id) {
+            if (!confirm('Xóa yêu thích này?')) return;
+            
+            try {
+                await fetch(`${TRACKING_API}?action=deleteFavorite&id=${id}`, { method: 'DELETE' });
+                showToast('✅ Đã xóa yêu thích', 'success');
+                loadFavorites();
+                loadStats();
+            } catch (error) {
+                showToast('❌ Lỗi xóa: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        // USER TRACKING
+        // ============================================================
+        function initTracking() {
+            if (!trackingMap) {
+                trackingMap = L.map('trackingMap').setView([10.7769, 106.7009], 13);
+                L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                    attribution: 'Google Maps',
+                    maxZoom: 20
+                }).addTo(trackingMap);
+            }
+            
+            loadTrackingData();
+            
+            // Auto refresh every 5 seconds
+            if (trackingInterval) clearInterval(trackingInterval);
+            trackingInterval = setInterval(loadTrackingData, 5000);
+        }
+
+        async function loadTrackingData() {
+            try {
+                // Fetch users với thông tin QR và App
+                const usersRes = await fetch(`${TRACKING_API}?action=getUsers`);
+                const usersData = await usersRes.json();
+                
+                // Fetch tracking data
+                const trackingRes = await fetch(`${TRACKING_API}?action=getTracking`);
+                const trackingData = await trackingRes.json();
+                
+                // Fetch app stats
+                const statsRes = await fetch(`${TRACKING_API}?action=getAppStats`);
+                const statsData = await statsRes.json();
+                
+                const users = usersData.data || [];
+                const tracking = trackingData.data || [];
+                const stats = statsData.data || {};
+                
+                updateTrackingStats(tracking, stats);
+                updateTrackingUserList(users, tracking);
+                updateTrackingMap(users, tracking);
+            } catch (error) {
+                console.error('Error loading tracking data:', error);
+            }
+        }
+
+        function updateTrackingStats(tracking, stats) {
+            const online = tracking.filter(t => t.IsActive).length;
+            const navigating = tracking.filter(t => t.IsNavigating && t.IsActive).length;
+            
+            document.getElementById('qrScannedUsers').textContent = stats.qrScanned || 0;
+            document.getElementById('appInstalledUsers').textContent = stats.appInstalled || 0;
+            document.getElementById('trackingOnline').textContent = online;
+            document.getElementById('trackingNavigating').textContent = navigating;
+        }
+
+        function updateTrackingUserList(users, tracking) {
+            const listDiv = document.getElementById('trackingUserList');
+            const activeTracking = tracking.filter(t => t.IsActive);
+            
+            if (activeTracking.length === 0) {
+                listDiv.innerHTML = '<div class="loading">Không có người dùng online</div>';
+                return;
+            }
+            
+            listDiv.innerHTML = activeTracking.map(track => {
+                const user = users.find(u => u.Id === track.UserId);
+                const userName = user ? user.Username : `User ${track.UserId}`;
+                const lastUpdate = new Date(track.LastUpdate).toLocaleTimeString('vi-VN');
+                
+                return `
+                    <div class="tracking-user-item" onclick="focusTrackingUser(${track.UserId})">
+                        <div class="tracking-user-header">
+                            <span class="tracking-user-name">${userName}</span>
+                            <span class="tracking-status"></span>
+                        </div>
+                        <div class="tracking-user-info">📍 ${track.CurrentLat ? track.CurrentLat.toFixed(4) : '--'}, ${track.CurrentLng ? track.CurrentLng.toFixed(4) : '--'}</div>
+                        <div class="tracking-user-info">🕐 ${lastUpdate}</div>
+                        ${track.DestinationName ? `<div class="tracking-destination">🎯 ${track.DestinationName}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateTrackingMap(users, tracking) {
+            // Clear old markers
+            Object.values(trackingMarkers).forEach(marker => trackingMap.removeLayer(marker));
+            Object.values(trackingRoutes).forEach(route => trackingMap.removeLayer(route));
+            trackingMarkers = {};
+            trackingRoutes = {};
+            
+            // Add new markers
+            tracking.filter(t => t.IsActive && t.CurrentLat && t.CurrentLng).forEach(track => {
+                const user = users.find(u => u.Id === track.UserId);
+                const userName = user ? user.Username : `User ${track.UserId}`;
+                
+                // User marker
+                const marker = L.marker([track.CurrentLat, track.CurrentLng], {
+                    icon: L.divIcon({
+                        html: '<div style="width:20px;height:20px;background:#E63946;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>',
+                        iconSize: [26, 26],
+                        iconAnchor: [13, 13],
+                        className: ''
+                    })
+                }).addTo(trackingMap);
+                
+                marker.bindPopup(`
+                    <div style="min-width: 200px;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">👤 ${userName}</div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">📍 ${track.CurrentLat.toFixed(6)}, ${track.CurrentLng.toFixed(6)}</div>
+                        <div style="font-size: 12px; color: #666;">🕐 ${new Date(track.LastUpdate).toLocaleString('vi-VN')}</div>
+                        ${track.DestinationName ? `<div style="font-size: 13px; color: #E63946; font-weight: 500; margin-top: 8px;">🎯 ${track.DestinationName}</div>` : ''}
+                    </div>
+                `);
+                
+                trackingMarkers[track.UserId] = marker;
+                
+                // Destination marker
+                if (track.DestinationLat && track.DestinationLng) {
+                    const destMarker = L.marker([track.DestinationLat, track.DestinationLng], {
+                        icon: L.divIcon({
+                            html: '<div style="width:30px;height:30px;background:#457B9D;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;">🎯</div>',
+                            iconSize: [36, 36],
+                            iconAnchor: [18, 18],
+                            className: ''
+                        })
+                    }).addTo(trackingMap);
+                    
+                    destMarker.bindPopup(`
+                        <div style="min-width: 200px;">
+                            <div style="font-weight: 600; margin-bottom: 8px;">🎯 ${track.DestinationName || 'Điểm đến'}</div>
+                            <div style="font-size: 12px; color: #666;">👤 ${userName}</div>
+                        </div>
+                    `);
+                    
+                    // Draw route line
+                    const routeLine = L.polyline([
+                        [track.CurrentLat, track.CurrentLng],
+                        [track.DestinationLat, track.DestinationLng]
+                    ], {
+                        color: '#E63946',
+                        weight: 3,
+                        opacity: 0.6,
+                        dashArray: '10, 10'
+                    }).addTo(trackingMap);
+                    
+                    trackingRoutes[track.UserId] = routeLine;
+                }
+            });
+        }
+
+        function focusTrackingUser(userId) {
+            const marker = trackingMarkers[userId];
+            if (marker) {
+                trackingMap.setView(marker.getLatLng(), 16);
+                marker.openPopup();
+                
+                // Highlight user in list
+                document.querySelectorAll('.tracking-user-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                event.target.closest('.tracking-user-item').classList.add('active');
+            }
+        }
+
+        function refreshTracking() {
+            loadTrackingData();
+            showToast('✅ Đã làm mới dữ liệu tracking', 'success');
+        }
+
+        // Cleanup on section change
+        window.addEventListener('beforeunload', () => {
+            if (trackingInterval) clearInterval(trackingInterval);
+        });
+
+        // ============================================================
+        // LOGOUT FUNCTION
+        // ============================================================
+        function logout() {
+            if (confirm('Bạn có chắc muốn đăng xuất?')) {
+                // Clear any intervals
+                if (trackingInterval) clearInterval(trackingInterval);
+                
+                // Show logout message
+                showToast('Đã đăng xuất thành công!', 'success');
+                
+                // Close window after short delay
+                setTimeout(() => {
+                    // Try to close the window
+                    window.close();
+                    
+                    // If window.close() doesn't work (some browsers block it)
+                    // Redirect to a blank page or show logout screen
+                    if (!window.closed) {
+                        document.body.innerHTML = `
+                            <div style="
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                height: 100vh;
+                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                color: white;
+                                font-family: 'Segoe UI', sans-serif;
+                                text-align: center;
+                            ">
+                                <div>
+                                    <i class="fas fa-check-circle" style="font-size: 64px; margin-bottom: 20px; color: #4CAF50;"></i>
+                                    <h1 style="margin-bottom: 10px;">Đã Đăng Xuất</h1>
+                                    <p style="margin-bottom: 20px; opacity: 0.8;">Bạn đã đăng xuất khỏi Admin Dashboard thành công.</p>
+                                    <p style="font-size: 14px; opacity: 0.6;">Bạn có thể đóng tab này.</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }, 1000);
+            }
+        }
+    </script>
+</body>
+</html>

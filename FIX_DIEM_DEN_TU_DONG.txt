@@ -1,0 +1,48 @@
+═══════════════════════════════════════════════════════════
+  ✅ ĐÃ SỬA: ĐIỂM ĐẾN TỰ ĐỘNG SET
+═══════════════════════════════════════════════════════════
+
+VẤN ĐỀ TRƯỚC:
+  • Chọn GPS → Chỉ lấy GPS, chưa có điểm đến ❌
+  • Chọn Tìm kiếm → Chỉ mở search, chưa có điểm đến ❌
+  • Phải click marker quán lại để chọn điểm đến
+
+ĐÃ SỬA:
+  • Chọn GPS → Tự động set điểm đến + Lấy GPS ✅
+  • Chọn Tìm kiếm → Tự động set điểm đến + Mở search ✅
+  • Chọn Mặc định → Tự động set điểm đến + Tính route ✅
+
+═══════════════════════════════════════════════════════════
+  🎮 CÁCH HOẠT ĐỘNG BÂY GIỜ
+═══════════════════════════════════════════════════════════
+
+Chọn GPS:
+  1. Popup → Chọn "🌐 Dùng vị trí hiện tại"
+  2. Bottom panel hiện ngay với tên quán ✅
+  3. GPS lấy vị trí
+  4. Route tự động tính đến quán ✅
+
+Chọn Tìm kiếm:
+  1. Popup → Chọn "🔍 Tìm kiếm địa điểm"
+  2. Bottom panel hiện ngay với tên quán ✅
+  3. Search panel mở → Nhập địa điểm
+  4. Chọn kết quả
+  5. Route tự động tính đến quán ✅
+
+Chọn Mặc định:
+  1. Popup → Chọn "Dùng vị trí mặc định"
+  2. Bottom panel hiện ngay với tên quán ✅
+  3. Route tự động tính đến quán ✅
+
+═══════════════════════════════════════════════════════════
+  💡 LỢI ÍCH
+═══════════════════════════════════════════════════════════
+
+✅ Không cần click marker lại
+✅ Thấy ngay điểm đến trong bottom panel
+✅ Cả 3 lựa chọn đều nhất quán
+✅ Tiết kiệm thời gian
+
+═══════════════════════════════════════════════════════════
+
+Xem chi tiết: SUA_LOI_CHON_DIEM_XUAT_PHAT.md

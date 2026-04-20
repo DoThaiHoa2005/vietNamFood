@@ -1,0 +1,90 @@
+<Window x:Class="VietnamFoodGuide.Views.FavoritesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Danh sách yêu thích"
+        Height="700" Width="900"
+        Background="{StaticResource BackgroundBrush}"
+        WindowStartupLocation="CenterScreen"
+        Icon="/Assets/Images/banner.png">
+
+    <Window.Resources>
+        <Style x:Key="RoundedButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GlobalButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Background="White" Margin="20,20,20,10">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock Text="⭐" FontSize="28" Margin="0,0,15,0"/>
+                <TextBlock Text="Danh sách yêu thích" FontSize="28" FontWeight="ExtraBold"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+            </StackPanel>
+            <TextBlock x:Name="CountTxt" Text="0 món ăn" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"
+                       Margin="43,8,0,0"/>
+        </StackPanel>
+
+        <ScrollViewer Padding="20" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <!-- Empty State -->
+                <StackPanel x:Name="EmptyState" Visibility="Collapsed" VerticalAlignment="Center"
+                            HorizontalAlignment="Center" Margin="0,150,0,0">
+                    <TextBlock Text="💔" FontSize="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Chưa có món ăn yêu thích" FontSize="18" FontWeight="Bold"
+                               Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"
+                               Margin="0,20,0,10"/>
+                    <TextBlock Text="Thêm các món ăn vào danh sách yêu thích để xem tại đây"
+                               FontSize="14" Foreground="#AAAAAA" HorizontalAlignment="Center"
+                               TextAlignment="Center" MaxWidth="400"/>
+                </StackPanel>
+
+                <!-- Favorites Grid -->
+                <ItemsControl x:Name="FavoritesList">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel HorizontalAlignment="Center"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="270" Margin="15" Background="White" CornerRadius="18" Padding="0"
+                                    Cursor="Hand">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="12" Opacity="0.08" ShadowDepth="4"/>
+                                </Border.Effect>
+                                <Grid x:Name="CardGrid">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="160"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Image -->
+                                    <Border Grid.Row="0" CornerRadius="18,18,0,0" ClipToBounds="True"
+                                            Background="#E0E0E0">
+                                        <Image Source="{Binding Image}" Stretch="UniformToFill"/>
+                                    </Border>
+
+                                    <!-- Content -->
+                                    <StackPanel Grid.Row="1" Margin="15,15,15,15">
+                                        <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="Bold"
+                                                   Margin="0,8,0,4" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   TextWrapping="Wrap" MaxHeight="45"/>
+                                        <Grid Margin="0,6,0,10">
+                                            <TextBlock Text="{Binding City}" Foreground="{StaticResource SecondaryBrush}"
+                                                       FontSize="12" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Rating, StringFormat=⭐ \{0:F1\}}"
+                                                       Foreground="{StaticResource AccentBrush}" FontWeight="Bold"
+                                                       HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Button Content="Xem chi tiết" Style="{StaticResource RoundedButtonStyle}"
+                                                Click="ViewDetails" Margin="0,0,0,0" Height="40"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

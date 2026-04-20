@@ -1,0 +1,33 @@
+✅ ĐÃ THÊM TÍNH NĂNG GHI NHỚ TÀI KHOẢN
+
+🎯 CÁCH DÙNG:
+
+1. Đăng nhập lần đầu
+2. Tích checkbox "Ghi nhớ tài khoản"
+3. Click "Đăng Nhập"
+
+→ Lần sau mở app, tài khoản và mật khẩu tự động điền!
+
+🔒 BẢO MẬT:
+
+- Mã hóa bằng Windows DPAPI
+- Chỉ user hiện tại mới đọc được
+- File lưu tại: %AppData%\VietnamFoodGuide\credentials.dat
+
+❌ XÓA THÔNG TIN:
+
+- Bỏ tích checkbox "Ghi nhớ" và đăng nhập lại
+- Hoặc xóa file credentials.dat
+
+💡 LƯU Ý:
+
+- Mỗi user Windows có thông tin riêng
+- Không thể copy file sang máy khác
+- Nếu đổi password, cần đăng nhập lại với "Ghi nhớ" để cập nhật
+
+🧪 TEST:
+
+1. Đăng nhập với "Ghi nhớ" được tích
+2. Đóng app
+3. Mở lại app
+4. ✅ Thông tin đã được tự động điền!

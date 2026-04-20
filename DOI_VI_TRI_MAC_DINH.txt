@@ -1,0 +1,61 @@
+✅ ĐÃ ĐỔI VỊ TRÍ XUẤT PHÁT MẶC ĐỊNH
+
+📍 VỊ TRÍ:
+
+Trước: Vĩnh Khánh (10.78024, 106.70532)
+  → Khoảng cách: 0.1 - 0.5 km (quá gần)
+
+Sau: Bến Thành - Quận 1 (10.7769, 106.7009)
+  → Khoảng cách: 5 - 7 km (xa hơn)
+
+🎯 LỢI ÍCH:
+
+✅ Route dài hơn: 5-7 km thay vì 0.1-0.5 km
+✅ Nhiều hướng dẫn: 5-10 lần thay vì 1-2 lần
+✅ Dễ test giọng nói: Nghe nhiều hướng dẫn hơn
+✅ Dễ test vệt xanh: Vệt dài hơn để test
+
+🧪 TEST:
+
+1. Mở MapWindow
+2. Chọn "Dùng vị trí mặc định"
+3. ✅ Thấy điểm xuất phát ở Bến Thành (xa)
+4. Bắt đầu navigation
+5. ✅ Route dài ~5-7 km
+6. ✅ Nghe nhiều hướng dẫn: "Bắt đầu...", "Rẽ trái...", "Rẽ phải..."
+
+📝 CODE:
+
+File: MapWindow.xaml.cs (dòng ~24-26)
+
+private double _userLat = 10.7769; // Bến Thành
+private double _userLng = 106.7009;
+
+🔧 ĐỔI VỊ TRÍ KHÁC:
+
+Quận 3 (xa ~4 km):
+  _userLat = 10.7860;
+  _userLng = 106.6910;
+
+Tân Bình (xa ~8 km):
+  _userLat = 10.8008;
+  _userLng = 106.6530;
+
+Sân bay (xa ~10 km):
+  _userLat = 10.8184;
+  _userLng = 106.6595;
+
+🔧 BUILD:
+
+cd VietnamFoodGuide
+dotnet clean
+dotnet build
+dotnet run
+
+📚 CHI TIẾT:
+
+Xem file: VI_TRI_XUAT_PHAT_MAC_DINH.md
+
+🎉 KẾT QUẢ:
+
+Route dài hơn → Dễ test giọng nói chỉ đường!

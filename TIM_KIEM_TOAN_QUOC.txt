@@ -1,0 +1,43 @@
+✅ ĐÃ MỞ RỘNG TÌM KIẾM TOÀN VIỆT NAM
+
+🎯 THAY ĐỔI:
+
+Trước: Chỉ tìm trong TP.HCM
+Sau: Tìm toàn Việt Nam
+
+🔍 CÓ THỂ TÌM:
+
+- Thành phố: Hà Nội, Đà Nẵng, Nha Trang, Huế, Cần Thơ...
+- Địa danh: Hồ Hoàn Kiếm, Vịnh Hạ Long, Phố cổ Hội An...
+- Sân bay: Nội Bài, Tân Sơn Nhất, Đà Nẵng...
+- Đường phố: Nguyễn Huệ, Lê Lợi, Trần Hưng Đạo...
+- Quận/Huyện: Quận 1, Ba Đình, Hoàn Kiếm...
+
+📝 CÁCH DÙNG:
+
+1. Mở MapWindow
+2. Click "🔍 Tìm kiếm địa điểm"
+3. Nhập tên (VD: "Hà Nội", "Hồ Hoàn Kiếm")
+4. Chọn kết quả
+5. Route tự động tính lại
+
+💡 MẸO:
+
+- Thêm thành phố: "Hồ Hoàn Kiếm, Hà Nội"
+- Tìm theo loại: "Sân bay Nội Bài"
+- Tìm chính xác hơn: "Bến Thành, TP.HCM"
+
+🔧 BUILD:
+
+cd VietnamFoodGuide
+dotnet clean
+dotnet build
+dotnet run
+
+🧪 TEST:
+
+Thử tìm: "Hà Nội", "Đà Nẵng", "Hồ Hoàn Kiếm", "Nội Bài"
+
+📚 CHI TIẾT:
+
+Xem file: TIM_KIEM_DIA_DIEM_MO_RONG.md

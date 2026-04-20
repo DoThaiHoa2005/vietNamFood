@@ -1,0 +1,238 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+:root {
+    --primary: #E63946;
+    --primary-light: #F1FAEE;
+    --secondary: #457B9D;
+    --dark: #1D3557;
+    --accent: #F4A261;
+    --white: #ffffff;
+    --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    --shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Outfit', sans-serif;
+}
+
+body {
+    background-color: var(--primary-light);
+    color: var(--dark);
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* Navbar */
+nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    padding: 20px 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    transition: var(--transition);
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 30px;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--dark);
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.nav-links a:hover {
+    color: var(--primary);
+}
+
+.btn-nav {
+    background: var(--primary);
+    color: white !important;
+    padding: 10px 25px;
+    border-radius: 50px;
+}
+
+/* Hero Section */
+.hero {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 0 10%;
+    background: linear-gradient(135deg, rgba(241, 250, 238, 0.9) 0%, rgba(255, 255, 255, 0.6) 100%),
+                url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=2070') no-repeat center center/cover;
+}
+
+.hero-content {
+    max-width: 600px;
+    animation: fadeInUp 0.8s ease;
+}
+
+.hero h1 {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 25px;
+}
+
+.hero h1 span {
+    color: var(--primary);
+}
+
+.hero p {
+    font-size: 18px;
+    margin-bottom: 35px;
+    color: #444;
+}
+
+.cta-group {
+    display: flex;
+    gap: 20px;
+}
+
+.btn-main {
+    padding: 15px 40px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3);
+}
+
+.btn-main:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(230, 57, 70, 0.4);
+}
+
+/* QR Section */
+.qr-section {
+    padding: 100px 0;
+    background: var(--white);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 100px;
+}
+
+.qr-card {
+    background: white;
+    padding: 40px;
+    border-radius: 30px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    max-width: 400px;
+    border: 1px solid #f0f0f0;
+    transition: var(--transition);
+}
+
+.qr-card:hover {
+    transform: scale(1.02);
+}
+
+.qr-image {
+    width: 250px;
+    height: 250px;
+    margin-bottom: 25px;
+    border-radius: 15px;
+}
+
+.qr-card h2 {
+    margin-bottom: 15px;
+    font-size: 28px;
+}
+
+/* Features */
+.features {
+    padding: 100px 10%;
+    background: var(--primary-light);
+}
+
+.section-title {
+    text-align: center;
+    margin-bottom: 70px;
+}
+
+.section-title h2 {
+    font-size: 42px;
+    margin-bottom: 15px;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+.feature-card {
+    background: white;
+    padding: 40px;
+    border-radius: 20px;
+    transition: var(--transition);
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+    box-shadow: var(--shadow);
+}
+
+.feature-icon {
+    width: 60px;
+    height: 60px;
+    background: var(--primary-light);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 968px) {
+    .qr-section {
+        flex-direction: column;
+        gap: 50px;
+        text-align: center;
+    }
+    .hero h1 {
+        font-size: 45px;
+    }
+}

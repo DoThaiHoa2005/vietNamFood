@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vietnam Food Guide - Khám phá ẩm thực Việt</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Transparent Navbar -->
+    <nav>
+        <div class="logo">
+            <i class="fas fa-utensils"></i> VFG
+        </div>
+        <div class="nav-links">
+            <a href="#hero">Trang chủ</a>
+            <a href="#features">Tính năng</a>
+            <a href="#download" class="btn-nav">Tải App Ngay</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+        <div class="hero-content">
+            <h1>Khám phá tinh hoa <span>Ẩm thực Việt</span></h1>
+            <p>Ứng dụng hướng dẫn ẩm thực thông minh với công nghệ dẫn đường giọng nói thực tế ảo. Tìm kiếm hàng nghìn quán ăn ngon nhất địa phương.</p>
+            <div class="cta-group">
+                <button class="btn-main" onclick="document.getElementById('download').scrollIntoView({behavior: 'smooth'})">
+                    Bắt đầu hành trình
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="section-title">
+            <h2>Tính năng đột phá</h2>
+            <p>Chúng tôi mang đến trải nghiệm khám phá ẩm thực hoàn toàn mới</p>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-microphone"></i></div>
+                <h3>Chỉ đường giọng nói</h3>
+                <p>Hướng dẫn rẽ từng bước bằng giọng nói tự nhiên, giúp bạn tập trung lái xe an toàn.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-map-marked-alt"></i></div>
+                <h3>Bản đồ tương tác</h3>
+                <p>Bản đồ Leaflet mượt mà với dữu liệu quán ăn được cập nhật liên tục bởi cộng đồng.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-star"></i></div>
+                <h3>Đánh giá thực chất</h3>
+                <p>Hệ thống đánh giá 5 sao giúp bạn chọn lọc được những địa điểm xuất sắc nhất.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- QR Code Download Section -->
+    <section class="qr-section" id="download">
+        <div class="qr-content" style="max-width: 500px">
+            <h2 style="font-size: 36px; margin-bottom: 20px;">Trải nghiệm ngay trên thiết bị của bạn</h2>
+            <p style="font-size: 18px; color: #666; margin-bottom: 30px;">Quét mã QR bên cạnh để tải ứng dụng Vietnam Food Guide phiên bản mới nhất. Khám phá hàng trăm triệu hương vị chỉ trong tầm tay.</p>
+            <div style="display: flex; gap: 20px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Play Store" style="height: 45px; cursor: pointer;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" alt="App Store" style="height: 45px; cursor: pointer;">
+            </div>
+        </div>
+
+        <div class="qr-card">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://github.com/your-repo/vietnam-food-guide/releases/latest" alt="QR Code Download" class="qr-image">
+            <h2>Quét để tải App</h2>
+            <p style="color: var(--primary); font-weight: 600;">Hỗ trợ Windows 10/11</p>
+        </div>
+    </section>
+
+    <footer style="padding: 50px 10%; background: var(--dark); color: white; text-align: center;">
+        <p>© 2026 Vietnam Food Guide. Tất cả quyền được bảo lưu.</p>
+        <div style="margin-top: 20px; display: flex; justify-content: center; gap: 20px;">
+            <i class="fab fa-facebook" style="font-size: 24px; cursor: pointer;"></i>
+            <i class="fab fa-instagram" style="font-size: 24px; cursor: pointer;"></i>
+            <i class="fab fa-youtube" style="font-size: 24px; cursor: pointer;"></i>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scroll for nav links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

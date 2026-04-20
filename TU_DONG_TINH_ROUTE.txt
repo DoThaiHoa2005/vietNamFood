@@ -1,0 +1,48 @@
+═══════════════════════════════════════════════════════════
+  🗺️ TỰ ĐỘNG TÍNH TOÁN ĐƯỜNG ĐI
+═══════════════════════════════════════════════════════════
+
+✅ TÍNH NĂNG ĐÃ CÓ SẴN - HOẠT ĐỘNG TỰ ĐỘNG!
+
+1️⃣  Khi vào MapWindow:
+    • Popup hỏi chọn điểm xuất phát
+    • Chọn GPS / Tìm kiếm / Mặc định
+    • Route TỰ ĐỘNG tính đến món ăn đã chọn
+
+2️⃣  Khi thay đổi điểm xuất phát:
+    • Kéo điểm xanh → Route TỰ ĐỘNG tính lại
+    • Tìm kiếm địa điểm → Route TỰ ĐỘNG tính lại
+    • Nhấn GPS → Route TỰ ĐỘNG tính lại
+
+3️⃣  Khi click marker quán khác:
+    • Click marker → Route TỰ ĐỘNG tính đến quán đó
+
+═══════════════════════════════════════════════════════════
+  🎮 CÁCH SỬ DỤNG
+═══════════════════════════════════════════════════════════
+
+Scenario 1: Vào MapWindow
+  MainWindow → Chọn món → Xem bản đồ
+  → Popup → Chọn GPS
+  → Route tự động hiện
+
+Scenario 2: Đổi điểm xuất phát
+  Kéo điểm xanh đến vị trí mới
+  → Thả chuột
+  → Route tự động tính lại
+
+Scenario 3: Đổi điểm đến
+  Click marker quán khác
+  → Route tự động tính đến quán đó
+
+═══════════════════════════════════════════════════════════
+  ⚡ NHANH HƠN VỚI CACHE
+═══════════════════════════════════════════════════════════
+
+• Lần đầu: 0.5-2 giây
+• Lần sau (cùng vị trí): 0ms (cache)
+• Kéo về vị trí cũ → Hiện ngay lập tức
+
+═══════════════════════════════════════════════════════════
+
+Xem chi tiết: CACH_HOAT_DONG_BAN_DO.md
