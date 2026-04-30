@@ -1,30 +1,37 @@
-﻿<Window x:Class="VietnamFoodGuide.Views.MapWindow"
+<Window x:Class="VietnamFoodGuide.Views.MapWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-        Title="Vietnam Food Guide - Map"
-        Height="800" Width="1100" WindowStartupLocation="CenterScreen"
+        Title="Vietnam Food Guide - Bản đồ"
+        Height="780" Width="400"
+        MinHeight="600" MinWidth="360"
+        WindowStartupLocation="CenterScreen"
         Background="{StaticResource BackgroundBrush}"
+        ResizeMode="CanResize"
         Icon="/Assets/Images/banner.png"
         KeyDown="Window_KeyDown">
 
     <Window.Resources>
-        <Style TargetType="Button" x:Key="NavButtonStyle">
+        <Style TargetType="Button" x:Key="MapActionBtn">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="White" CornerRadius="12" Padding="15,10" Cursor="Hand">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="12" Padding="0" Cursor="Hand">
                             <Border.Effect>
-                                <DropShadowEffect BlurRadius="10" Opacity="0.1" ShadowDepth="3"/>
+                                <DropShadowEffect BlurRadius="10" Opacity="0.12" ShadowDepth="3"/>
                             </Border.Effect>
-                            <ContentPresenter/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#F0F0F0"/>
+                                <Setter TargetName="border" Property="Background" Value="#F5F5F5"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#E0E0E0"/>
+                                <Setter TargetName="border" Property="Background" Value="#EBEBEB"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -33,44 +40,59 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="30">
+    <Grid>
         <Grid.RowDefinitions>
+            <!-- Status bar -->
+            <RowDefinition Height="28"/>
+            <!-- Info card header -->
             <RowDefinition Height="Auto"/>
+            <!-- Map (fills remaining space) -->
             <RowDefinition Height="*"/>
+            <!-- Bottom safe area -->
+            <RowDefinition Height="16"/>
         </Grid.RowDefinitions>
 
-        <!-- Header Info -->
-        <Border Grid.Row="0" Background="White" CornerRadius="15" Padding="20" Margin="0,0,0,20">
+        <!-- ===== STATUS BAR ===== -->
+        <Border Grid.Row="0" Background="{StaticResource PrimaryBrush}">
+            <Grid Margin="16,0">
+                <Button x:Name="BtnBack" Content="← Quay lại" Click="Back_Click"
+                        Background="Transparent" BorderThickness="0"
+                        Foreground="White" FontSize="12" FontWeight="SemiBold"
+                        HorizontalAlignment="Left" VerticalAlignment="Center" Cursor="Hand"/>
+                <TextBlock x:Name="TxtMapTitle" Text="📍 Bản đồ vị trí" Foreground="White" FontSize="12"
+                           FontWeight="SemiBold" HorizontalAlignment="Center"
+                           VerticalAlignment="Center" Opacity="0.9"/>
+            </Grid>
+        </Border>
+
+        <!-- ===== FOOD INFO CARD ===== -->
+        <Border Grid.Row="1" Background="White" Padding="16,12,16,12">
             <Border.Effect>
-                <DropShadowEffect BlurRadius="12" Opacity="0.08" ShadowDepth="4"/>
+                <DropShadowEffect BlurRadius="10" Opacity="0.08" ShadowDepth="4" Direction="270"/>
             </Border.Effect>
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Back Button -->
-                <Button Grid.Column="0" Style="{StaticResource NavButtonStyle}" Click="Back_Click"
-                        VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="⬅" FontSize="18" Margin="0,0,10,0"/>
-                        <TextBlock Text="Quay lại" FontSize="14" FontWeight="Medium" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-
                 <!-- Food Info -->
-                <StackPanel Grid.Column="1" Margin="30,0,0,0" VerticalAlignment="Center">
-                    <TextBlock x:Name="TxtName" FontSize="26" FontWeight="ExtraBold"
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock x:Name="TxtCity" FontSize="14" Foreground="{StaticResource TextSecondaryBrush}"
-                               Margin="0,6,0,0"/>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="TxtName" FontSize="18" FontWeight="ExtraBold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               TextTrimming="CharacterEllipsis" MaxHeight="26"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Text="📍" FontSize="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtCity" FontSize="13"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
                 </StackPanel>
 
-                <!-- Rating -->
-                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
+                <!-- Star Rating -->
+                <Border Grid.Column="1" Background="{StaticResource BackgroundBrush}"
+                        CornerRadius="12" Padding="10,6" VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center">
                         <ItemsControl x:Name="StarRating" Focusable="False">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -79,44 +101,74 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="★" Foreground="{StaticResource AccentBrush}" FontSize="18" Margin="0,0,3,0"/>
+                                    <TextBlock Text="★" Foreground="{StaticResource AccentBrush}"
+                                               FontSize="16" Margin="0,0,1,0"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <TextBlock x:Name="TxtRatingCount" FontSize="11"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   HorizontalAlignment="Center" Margin="0,2,0,0"/>
                     </StackPanel>
-                    <TextBlock x:Name="TxtRatingCount" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
-                               Margin="0,4,0,0"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- Map Container -->
-        <Border Grid.Row="1" CornerRadius="20" ClipToBounds="True" Background="White">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="20" Opacity="0.12" ShadowDepth="8"/>
-            </Border.Effect>
-            <Grid>
-                <wv2:WebView2 x:Name="MapBrowser"/>
-                <!-- Auto-narration overlay -->
-                <Border x:Name="NarrationBanner" VerticalAlignment="Bottom" HorizontalAlignment="Stretch"
-                        Background="#CC000000" CornerRadius="0,0,20,20" Padding="20,12"
-                        Visibility="Collapsed">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="🔊 Đang thuyết minh tự động" Foreground="White" FontSize="12" Opacity="0.8"/>
-                            <TextBlock x:Name="TxtNarrationName" Foreground="White" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <Button Grid.Column="1" x:Name="BtnStopNarration" Content="⏹ Dừng"
-                                Background="#E63946" Foreground="White" Padding="12,8"
-                                BorderThickness="0" Cursor="Hand" Click="StopNarration_Click"
-                                VerticalAlignment="Center" Margin="10,0,0,0"/>
-                    </Grid>
                 </Border>
             </Grid>
         </Border>
+
+        <!-- ===== MAP AREA ===== -->
+        <Grid Grid.Row="2">
+            <!-- WebView2 Map -->
+            <wv2:WebView2 x:Name="MapBrowser"/>
+
+            <!-- Auto-narration banner (bottom overlay) -->
+            <Border x:Name="NarrationBanner"
+                    VerticalAlignment="Bottom" HorizontalAlignment="Stretch"
+                    Background="#CC000000" Padding="16,12"
+                    Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock x:Name="TxtNarrating" Text="🔊 Đang thuyết minh tự động"
+                                   Foreground="White" FontSize="11" Opacity="0.8"/>
+                        <TextBlock x:Name="TxtNarrationName"
+                                   Foreground="White" FontSize="15"
+                                   FontWeight="Bold" TextWrapping="Wrap"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="1" x:Name="BtnStopNarration"
+                            Content="⏹ Dừng"
+                            Background="#E63946" Foreground="White"
+                            Padding="14,8" BorderThickness="0"
+                            Cursor="Hand" Click="StopNarration_Click"
+                            VerticalAlignment="Center" Margin="12,0,0,0">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}"
+                                        CornerRadius="10" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Loading overlay -->
+            <Border x:Name="LoadingOverlay" Background="#80FFFFFF" Visibility="Collapsed">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="🗺️" FontSize="48" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="TxtLoadingMap" Text="Đang tải bản đồ..." FontSize="14"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Bottom safe area -->
+        <Border Grid.Row="3" Background="White"/>
     </Grid>
 </Window>

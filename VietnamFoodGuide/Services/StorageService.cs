@@ -11,12 +11,14 @@ namespace VietnamFoodGuide.Services
         private readonly string storageDirectory;
         private readonly string favoritesPath;
         private readonly string cacheDirectory;
+        private readonly string qrScanPath;
 
         public StorageService()
         {
             storageDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VietnamFoodGuide");
             cacheDirectory = Path.Combine(storageDirectory, "Cache");
             favoritesPath = Path.Combine(storageDirectory, "favorites.json");
+            qrScanPath = Path.Combine(storageDirectory, "qr_scanned.txt");
 
             if (!Directory.Exists(storageDirectory))
                 Directory.CreateDirectory(storageDirectory);
@@ -92,6 +94,38 @@ namespace VietnamFoodGuide.Services
                 if (File.Exists(cachePath))
                 {
                     return File.ReadAllText(cachePath);
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        // QR Scan Management
+        public void SaveQRScanned()
+        {
+            try
+            {
+                File.WriteAllText(qrScanPath, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            }
+            catch { }
+        }
+
+        public bool HasScannedQR()
+        {
+            return File.Exists(qrScanPath);
+        }
+
+        public DateTime? GetQRScanDate()
+        {
+            try
+            {
+                if (File.Exists(qrScanPath))
+                {
+                    string dateStr = File.ReadAllText(qrScanPath);
+                    if (DateTime.TryParse(dateStr, out var date))
+                    {
+                        return date;
+                    }
                 }
             }
             catch { }

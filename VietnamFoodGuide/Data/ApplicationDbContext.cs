@@ -15,6 +15,7 @@ namespace VietnamFoodGuide.Data
         public DbSet<Food> Foods { get; set; }
         public DbSet<Favorite> Favorites { get; set; }
         public DbSet<Session> Sessions { get; set; }
+        public DbSet<QRScan> QRScans { get; set; }
 
         private string _connectionString;
 

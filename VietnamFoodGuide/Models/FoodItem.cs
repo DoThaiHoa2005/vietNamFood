@@ -6,6 +6,7 @@ namespace VietnamFoodGuide.Models
     public class FoodItem : INotifyPropertyChanged
     {
         private bool _isFavorite;
+        private string _viewDetailsText;
 
         public int Id { get; set; }
         public string Name { get; set; }
@@ -27,6 +28,19 @@ namespace VietnamFoodGuide.Models
                 if (_isFavorite != value)
                 {
                     _isFavorite = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string ViewDetailsText
+        {
+            get => _viewDetailsText;
+            set
+            {
+                if (_viewDetailsText != value)
+                {
+                    _viewDetailsText = value;
                     OnPropertyChanged();
                 }
             }

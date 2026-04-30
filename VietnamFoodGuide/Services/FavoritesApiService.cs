@@ -38,6 +38,7 @@ namespace VietnamFoodGuide.Services
 
                 string json = JsonSerializer.Serialize(payload);
                 System.Diagnostics.Debug.WriteLine($"[AddFavorite] Request JSON: {json}");
+                System.Diagnostics.Debug.WriteLine($"[AddFavorite] API URL: {_baseUrl}?action=addFavorite");
                 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -47,20 +48,40 @@ namespace VietnamFoodGuide.Services
                 System.Diagnostics.Debug.WriteLine($"[AddFavorite] Response Status: {response.StatusCode}");
                 System.Diagnostics.Debug.WriteLine($"[AddFavorite] Response Body: {responseText}");
 
+                // Check if response is HTML (error page)
+                if (responseText.TrimStart().StartsWith("<") || responseText.Contains("<!DOCTYPE"))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AddFavorite] ERROR: API returned HTML instead of JSON");
+                    return (false, "Lỗi kết nối API. Vui lòng kiểm tra:\n1. XAMPP đã bật chưa?\n2. Ngrok URL còn hoạt động không?\n3. Database đã tạo chưa?");
+                }
+
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = JsonSerializer.Deserialize<ApiResponse>(responseText);
-                    return (result?.success == true, result?.message ?? "Thêm yêu thích thành công");
+                    try
+                    {
+                        var result = JsonSerializer.Deserialize<ApiResponse>(responseText);
+                        return (result?.success == true, result?.message ?? "Thêm yêu thích thành công");
+                    }
+                    catch (JsonException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AddFavorite] JSON Parse Error: {ex.Message}");
+                        return (false, $"Lỗi parse JSON: {ex.Message}");
+                    }
                 }
                 else
                 {
-                    return (false, $"Lỗi API: {response.StatusCode}");
+                    return (false, $"Lỗi API: {response.StatusCode} - {responseText}");
                 }
+            }
+            catch (HttpRequestException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AddFavorite] HTTP Exception: {ex.Message}");
+                return (false, $"Lỗi kết nối: Không thể kết nối đến API. Kiểm tra XAMPP và ngrok.");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[AddFavorite] Exception: {ex.Message}");
-                return (false, $"Lỗi kết nối: {ex.Message}");
+                return (false, $"Lỗi: {ex.Message}");
             }
         }
 

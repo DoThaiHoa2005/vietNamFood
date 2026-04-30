@@ -53,7 +53,7 @@ namespace VietnamFoodGuide
                                "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
-            // Show login window instead of main window
+            // Show Login Window first
             LoginWindow loginWindow = new LoginWindow(DbContext);
             loginWindow.Show();
         }

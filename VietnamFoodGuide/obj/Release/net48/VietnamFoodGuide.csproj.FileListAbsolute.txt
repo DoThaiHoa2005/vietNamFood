@@ -82,3 +82,11 @@ E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\Vietna
 E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\VietnamFoodGuide.exe
 E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\VietnamFoodGuide.pdb
 E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Release\net48\admin_dashboard.html
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\Views\AccountDialog.baml
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\Views\RegisterWindow.baml
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\Views\AccountDialog.g.cs
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\Views\RegisterWindow.g.cs
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\VietnamFoodGuide.sourcelink.json
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\Views\QRScannerWindow.baml
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\Views\QRScannerWindow.g.cs
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Release\net48\System.CodeDom.dll

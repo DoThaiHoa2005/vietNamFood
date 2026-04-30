@@ -85,6 +85,20 @@ CREATE TABLE IF NOT EXISTS UserTracking (
     INDEX idx_last_update (LastUpdate)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ============================================================
+-- BẢNG MỚI: QR SCANS (Tracking người quét QR)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS qr_scans (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    device_id VARCHAR(255) NOT NULL,
+    qr_code VARCHAR(500) NOT NULL,
+    scan_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    device_name VARCHAR(255) NULL,
+    os_version VARCHAR(100) NULL,
+    UNIQUE KEY unique_device (device_id),
+    INDEX idx_scan_date (scan_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert Users với password hash BCrypt
 -- Password: admin123 cho admin, user123 cho user
 INSERT IGNORE INTO Users (Username, PasswordHash, Role, QRScanned, AppInstalled, LastActiveTime, CreatedDate) VALUES
@@ -189,7 +203,7 @@ INSERT IGNORE INTO Favorites (UserId, FoodId, CreatedDate) VALUES
 (8, 8, NOW());
 
 -- Kiểm tra kết quả
-SELECT 'Setup hoàn tất với User Tracking!' AS Status;
+SELECT 'Setup hoàn tất với User Tracking & QR Scanner!' AS Status;
 SELECT CONCAT('👥 Users: ', COUNT(*), ' tài khoản') AS Info FROM Users;
 SELECT CONCAT('📱 QR Scanned: ', COUNT(*), ' người dùng') AS Info FROM Users WHERE QRScanned = TRUE;
 SELECT CONCAT('📲 App Installed: ', COUNT(*), ' người dùng') AS Info FROM Users WHERE AppInstalled = TRUE;
@@ -197,3 +211,4 @@ SELECT CONCAT('🟢 Currently Active: ', COUNT(*), ' người dùng') AS Info FR
 SELECT CONCAT('🍜 Foods: ', COUNT(*), ' quán ăn') AS Info FROM Foods;
 SELECT CONCAT('❤️ Favorites: ', COUNT(*), ' yêu thích') AS Info FROM Favorites;
 SELECT CONCAT('📍 Tracking: ', COUNT(*), ' phiên đang hoạt động') AS Info FROM UserTracking WHERE IsActive = TRUE;
+SELECT CONCAT('📱 QR Scans: ', COUNT(*), ' lượt quét') AS Info FROM qr_scans;

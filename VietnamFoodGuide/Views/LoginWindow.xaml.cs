@@ -89,7 +89,7 @@ namespace VietnamFoodGuide.Views
             // Disable button và hiển thị loading
             LoginButton.IsEnabled = false;
             LoginButton.Content = "Đang đăng nhập...";
-            ErrorMessage.Visibility = Visibility.Collapsed;
+            if (ErrorBorder != null) ErrorBorder.Visibility = Visibility.Collapsed;
 
             try
             {
@@ -198,16 +198,16 @@ namespace VietnamFoodGuide.Views
 
         private void ShowError(string message)
         {
-            ErrorMessage.Text = "❌ " + message;
+            ErrorMessage.Text = message;
             ErrorMessage.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 53, 69));
-            ErrorMessage.Visibility = Visibility.Visible;
+            if (ErrorBorder != null) ErrorBorder.Visibility = Visibility.Visible;
         }
 
         private void ShowSuccess(string message)
         {
             ErrorMessage.Text = "✅ " + message;
             ErrorMessage.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 167, 69));
-            ErrorMessage.Visibility = Visibility.Visible;
+            if (ErrorBorder != null) ErrorBorder.Visibility = Visibility.Visible;
         }
 
         private void OpenAdminDashboard()

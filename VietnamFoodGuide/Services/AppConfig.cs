@@ -10,7 +10,12 @@ namespace VietnamFoodGuide.Services
     {
         // 1. TÊN MIỀN NGROK (Thay đổi mỗi khi bạn bật lại ngrok)
         // Ví dụ: https://abcd-1234.ngrok-free.app/vfg-api
-        public static readonly string Domain = "https://bridged-shindig-feminize.ngrok-free.dev/vfg-api";
+        
+        // OPTION 1: Dùng Ngrok (cho remote access)
+        // public static readonly string Domain = "https://bridged-shindig-feminize.ngrok-free.dev/vfg-api";
+        
+        // OPTION 2: Dùng Localhost (cho local testing - không cần ngrok)
+        public static readonly string Domain = "http://localhost/vfg-api";
 
         // 2. ĐƯỜNG DẪN API (Tự động tạo dựa trên Domain)
         public static string ApiBaseUrl => $"{Domain}/api.php";

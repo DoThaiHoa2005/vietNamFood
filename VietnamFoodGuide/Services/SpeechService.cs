@@ -47,9 +47,6 @@ namespace VietnamFoodGuide.Services
 
             try
             {
-                // BEEP TEST: Play a sound regardless of voice availability
-                SystemSounds.Beep.Play();
-
                 _synthesizer.SpeakAsyncCancelAll();
 
                 // 1. Try exact match (e.g. vi-VN, en-US)
@@ -60,23 +57,37 @@ namespace VietnamFoodGuide.Services
 
                 if (voice != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"🎙️ [SpeechService] Selected voice: {voice.VoiceInfo.Name}");
+                    System.Diagnostics.Debug.WriteLine($"🎙️ [SpeechService] Selected voice: {voice.VoiceInfo.Name} ({voice.VoiceInfo.Culture})");
                     _synthesizer.SelectVoice(voice.VoiceInfo.Name);
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ [SpeechService] No matching voice found! Using default system voice.");
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [SpeechService] No voice found for {cultureCode}! Using default system voice.");
+                    // Thử dùng voice mặc định
+                    var defaultVoice = _synthesizer.GetInstalledVoices().FirstOrDefault(v => v.Enabled);
+                    if (defaultVoice != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"🎙️ [SpeechService] Using default voice: {defaultVoice.VoiceInfo.Name}");
+                        _synthesizer.SelectVoice(defaultVoice.VoiceInfo.Name);
+                    }
+                    else
+                    {
+                        throw new Exception($"Không tìm thấy voice pack nào! Vui lòng cài đặt Windows Speech Platform và voice pack cho {cultureCode}");
+                    }
                 }
 
                 _synthesizer.Volume = 100;
                 _synthesizer.Rate = 0;
                 _synthesizer.SpeakAsync(text);
+                
+                System.Diagnostics.Debug.WriteLine($"✅ [SpeechService] Speech started successfully");
             }
             catch (Exception ex)
             {
                 isPlaying = false;
                 System.Diagnostics.Debug.WriteLine($"❌ [SpeechService] Speak Error: {ex.Message}");
                 OnError?.Invoke(ex.Message);
+                throw; // Re-throw để FoodDetailWindow có thể catch và hiển thị message
             }
         }
 

@@ -29,26 +29,66 @@ namespace VietnamFoodGuide.Services
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine($"[ApiFoodService] Loading foods from API: {_apiBaseUrl}?action=foods");
+                
                 // Gọi API để lấy dữ liệu từ MySQL
                 var response = await _httpClient.GetAsync($"{_apiBaseUrl}?action=foods");
                 
                 if (!response.IsSuccessStatusCode)
                 {
-                    System.Diagnostics.Debug.WriteLine("API không phản hồi, dùng foods.json");
+                    System.Diagnostics.Debug.WriteLine($"[ApiFoodService] API returned status: {response.StatusCode}");
+                    System.Diagnostics.Debug.WriteLine("[ApiFoodService] Fallback to foods.json");
                     return _fallbackService.LoadFoods();
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
+                
+                // Check if response is HTML (error page)
+                if (json.TrimStart().StartsWith("<") || json.Contains("<!DOCTYPE"))
+                {
+                    System.Diagnostics.Debug.WriteLine("[ApiFoodService] ERROR: API returned HTML instead of JSON");
+                    System.Diagnostics.Debug.WriteLine("[ApiFoodService] Possible causes:");
+                    System.Diagnostics.Debug.WriteLine("  1. XAMPP is not running");
+                    System.Diagnostics.Debug.WriteLine("  2. Ngrok URL expired");
+                    System.Diagnostics.Debug.WriteLine("  3. Database not created");
+                    System.Diagnostics.Debug.WriteLine("[ApiFoodService] Fallback to foods.json");
+                    return _fallbackService.LoadFoods();
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"[ApiFoodService] API Response (first 200 chars): {json.Substring(0, Math.Min(200, json.Length))}");
+
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var foods = JsonSerializer.Deserialize<List<ApiFood>>(json, options);
 
+                if (foods == null || foods.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("[ApiFoodService] API returned empty list, fallback to foods.json");
+                    return _fallbackService.LoadFoods();
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[ApiFoodService] Successfully loaded {foods.Count} foods from API");
+                
                 // Convert từ ApiFood (database format) sang FoodItem (app format)
                 return ConvertToFoodItems(foods);
             }
+            catch (HttpRequestException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiFoodService] HTTP Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine("[ApiFoodService] Cannot connect to API. Check XAMPP and ngrok.");
+                System.Diagnostics.Debug.WriteLine("[ApiFoodService] Fallback to foods.json");
+                return _fallbackService.LoadFoods();
+            }
+            catch (JsonException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiFoodService] JSON Parse Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine("[ApiFoodService] API response is not valid JSON");
+                System.Diagnostics.Debug.WriteLine("[ApiFoodService] Fallback to foods.json");
+                return _fallbackService.LoadFoods();
+            }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Lỗi load từ API: {ex.Message}");
-                // Fallback về JSON local
+                System.Diagnostics.Debug.WriteLine($"[ApiFoodService] Unexpected Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine("[ApiFoodService] Fallback to foods.json");
                 return _fallbackService.LoadFoods();
             }
         }

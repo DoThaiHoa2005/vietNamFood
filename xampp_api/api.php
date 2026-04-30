@@ -615,6 +615,96 @@ switch ($action) {
         }
         break;
 
+    // ============================================================
+    // QR SCAN ENDPOINTS
+    // ============================================================
+    
+    case 'saveQRScan':
+        // Lưu thông tin quét QR
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $deviceId = $data['deviceId'] ?? '';
+            $qrCode = $data['qrCode'] ?? '';
+            $deviceName = $data['deviceName'] ?? '';
+            $osVersion = $data['osVersion'] ?? '';
+            
+            if (empty($deviceId) || empty($qrCode)) {
+                http_response_code(400);
+                echo json_encode(["success" => false, "message" => "DeviceId và QRCode không được để trống"]);
+                break;
+            }
+            
+            // Kiểm tra xem device đã quét chưa
+            $stmt = $pdo->prepare("SELECT Id FROM qr_scans WHERE device_id = ?");
+            $stmt->execute([$deviceId]);
+            if ($stmt->fetch()) {
+                echo json_encode([
+                    "success" => true,
+                    "message" => "Device đã quét QR trước đó",
+                    "alreadyScanned" => true
+                ]);
+                break;
+            }
+            
+            // Lưu thông tin quét QR
+            $stmt = $pdo->prepare("
+                INSERT INTO qr_scans (device_id, qr_code, device_name, os_version, scan_date)
+                VALUES (?, ?, ?, ?, NOW())
+            ");
+            $stmt->execute([$deviceId, $qrCode, $deviceName, $osVersion]);
+            
+            echo json_encode([
+                "success" => true,
+                "message" => "Lưu QR scan thành công",
+                "scanId" => $pdo->lastInsertId()
+            ]);
+        }
+        break;
+
+    case 'checkQRScan':
+        // Kiểm tra xem device đã quét QR chưa
+        $deviceId = $_GET['deviceId'] ?? '';
+        
+        if (empty($deviceId)) {
+            echo json_encode(["hasScanned" => false]);
+            break;
+        }
+        
+        $stmt = $pdo->prepare("SELECT Id, scan_date FROM qr_scans WHERE device_id = ?");
+        $stmt->execute([$deviceId]);
+        $scan = $stmt->fetch();
+        
+        echo json_encode([
+            "hasScanned" => $scan ? true : false,
+            "scanDate" => $scan ? $scan['scan_date'] : null
+        ]);
+        break;
+
+    case 'getQRScans':
+        // Lấy danh sách tất cả QR scans (cho admin dashboard)
+        $stmt = $pdo->query("SELECT * FROM qr_scans ORDER BY scan_date DESC");
+        echo json_encode([
+            "success" => true,
+            "data" => $stmt->fetchAll()
+        ]);
+        break;
+
+    case 'getQRStats':
+        // Lấy thống kê QR scans
+        $totalScans = $pdo->query("SELECT COUNT(*) FROM qr_scans")->fetchColumn();
+        $todayScans = $pdo->query("SELECT COUNT(*) FROM qr_scans WHERE DATE(scan_date) = CURDATE()")->fetchColumn();
+        $weekScans = $pdo->query("SELECT COUNT(*) FROM qr_scans WHERE scan_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+        
+        echo json_encode([
+            "success" => true,
+            "data" => [
+                "totalScans" => (int)$totalScans,
+                "todayScans" => (int)$todayScans,
+                "weekScans" => (int)$weekScans
+            ]
+        ]);
+        break;
+
     default:
         http_response_code(404);
         echo json_encode(["error" => "Action không hợp lệ"]);

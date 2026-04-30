@@ -109,7 +109,7 @@ namespace VietnamFoodGuide.Views
             // Disable button và hiển thị loading
             RegisterButton.IsEnabled = false;
             RegisterButton.Content = "Đang đăng ký...";
-            MessageTextBlock.Visibility = Visibility.Collapsed;
+            if (MessageBorder != null) MessageBorder.Visibility = Visibility.Collapsed;
 
             try
             {
@@ -199,14 +199,14 @@ namespace VietnamFoodGuide.Views
         {
             MessageTextBlock.Text = "❌ " + message;
             MessageTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 53, 69));
-            MessageTextBlock.Visibility = Visibility.Visible;
+            if (MessageBorder != null) { MessageBorder.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 255, 240, 240)); MessageBorder.Visibility = Visibility.Visible; }
         }
 
         private void ShowSuccess(string message)
         {
             MessageTextBlock.Text = "✅ " + message;
             MessageTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 167, 69));
-            MessageTextBlock.Visibility = Visibility.Visible;
+            if (MessageBorder != null) { MessageBorder.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 240, 255, 244)); MessageBorder.Visibility = Visibility.Visible; }
         }
 
         private bool IsValidEmail(string email)
