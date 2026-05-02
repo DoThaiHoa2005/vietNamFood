@@ -4,6 +4,8 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using VietnamFoodGuide.Models;
 using VietnamFoodGuide.Services;
 
@@ -23,11 +25,18 @@ namespace VietnamFoodGuide.Views
             InitializeLanguage();
             LoadData();
             
+            // Bắt đầu background sync
+            BackgroundSyncService.Instance.Start();
+            
             // Subscribe to language changes
             lang.LanguageChanged += (s, e) => UpdateUILanguage();
             
             // Check QR scan status and show notification if needed
             CheckQRScanStatus();
+            
+            // Apply saved theme
+            ThemeService.Instance.ApplyTheme();
+            UpdateToggleUI(ThemeService.Instance.IsDarkMode);
         }
 
         private void InitializeLanguage()
@@ -50,6 +59,39 @@ namespace VietnamFoodGuide.Views
             }
             
             UpdateUILanguage();
+        }
+
+        // ===== DARK MODE =====
+        private void DarkModeToggle_Click(object sender, MouseButtonEventArgs e)
+        {
+            ThemeService.Instance.Toggle();
+            UpdateToggleUI(ThemeService.Instance.IsDarkMode);
+        }
+
+        private void UpdateToggleUI(bool isDark)
+        {
+            if (ToggleThumb == null) return;
+
+            if (isDark)
+            {
+                // Dark ON → thumb right, bright green
+                ToggleThumb.HorizontalAlignment = HorizontalAlignment.Right;
+                ToggleThumb.Margin = new Thickness(0, 0, 2, 0);
+                ToggleTrack.Background = new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A)); // dark green active
+                TxtDarkModeIcon.Text = "🌙";
+                TxtDarkModeIcon.HorizontalAlignment = HorizontalAlignment.Left;
+                TxtDarkModeIcon.Margin = new Thickness(3, 0, 0, 0);
+            }
+            else
+            {
+                // Light OFF → thumb left, muted green
+                ToggleThumb.HorizontalAlignment = HorizontalAlignment.Left;
+                ToggleThumb.Margin = new Thickness(2, 0, 0, 0);
+                ToggleTrack.Background = new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0xFF, 0xFF)); // translucent on red bar
+                TxtDarkModeIcon.Text = "☀️";
+                TxtDarkModeIcon.HorizontalAlignment = HorizontalAlignment.Right;
+                TxtDarkModeIcon.Margin = new Thickness(0, 0, 3, 0);
+            }
         }
 
         private void UpdateUILanguage()
@@ -376,24 +418,45 @@ namespace VietnamFoodGuide.Views
                 {
                     btn.IsEnabled = false; // Tránh bấm nhiều lần
                     
+                    var storageService = new StorageService();
+                    bool isOnline = await NetworkService.IsInternetAvailableAsync();
+                    
                     if (food.IsFavorite)
                     {
-                        // Đang thích -> Bỏ thích
-                        var result = await favoritesService.RemoveFavoriteAsync(App.CurrentApiUser.Id, food.Id);
-                        if (result.success)
+                        // Đang thích -> Bỏ thích (Offline-First)
+                        storageService.RemoveFavorite(food.Name);
+                        food.IsFavorite = false;
+                        
+                        if (isOnline)
                         {
-                            food.IsFavorite = false;
+                            _ = favoritesService.RemoveFavoriteAsync(App.CurrentApiUser.Id, food.Id);
                         }
                     }
                     else
                     {
-                        // Chưa thích -> Thêm thích
-                        var result = await favoritesService.AddFavoriteAsync(App.CurrentApiUser.Id, food.Id);
-                        if (result.success)
+                        // Chưa thích -> Thêm thích (Offline-First)
+                        storageService.AddFavorite(food);
+                        food.IsFavorite = true;
+                        
+                        if (isOnline)
                         {
-                            food.IsFavorite = true;
+                            var result = await favoritesService.AddFavoriteAsync(App.CurrentApiUser.Id, food.Id);
+                            if (result.success)
+                            {
+                                var sqliteFavorites = new SQLiteFavoritesService();
+                                sqliteFavorites.MarkAsSynced(App.CurrentApiUser.Id, food.Id);
+                            }
                         }
                     }
+                    
+                    // Kích hoạt sync background
+                    if (isOnline)
+                    {
+                        _ = BackgroundSyncService.Instance.SyncNowAsync();
+                    }
+                    
+                    // Refresh FoodList to update UI
+                    FoodList.Items.Refresh();
                 }
                 catch (Exception ex)
                 {

@@ -1,15 +1,19 @@
 <Window x:Class="VietnamFoodGuide.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:VietnamFoodGuide.Converters"
         Title="Vietnam Food Guide"
         Height="780" Width="400"
         MinHeight="600" MinWidth="360"
-        Background="{StaticResource BackgroundBrush}"
+        Background="{DynamicResource BackgroundBrush}"
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/Images/banner.png"
         ResizeMode="CanResize">
 
     <Window.Resources>
+        <!-- Image Converter -->
+        <converters:StringToImageSourceConverter x:Key="ImageConverter"/>
+        
         <Style x:Key="RoundedButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GlobalButtonStyle}">
             <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
         </Style>
@@ -87,7 +91,7 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <!-- Language Selector -->
                     <ComboBox x:Name="CmbLanguage" Width="110" Height="20" 
-                              FontSize="10" Margin="0,0,12,0"
+                              FontSize="10" Margin="0,0,10,0"
                               SelectionChanged="LanguageChanged"
                               Background="White" Foreground="#333333"
                               BorderThickness="0">
@@ -95,6 +99,26 @@
                         <ComboBoxItem Content="🇺🇸 English" Tag="en"/>
                         <ComboBoxItem Content="🇨🇳 中文" Tag="zh"/>
                     </ComboBox>
+
+                    <!-- Dark Mode Toggle -->
+                    <Border x:Name="DarkModeToggle" Width="40" Height="20" CornerRadius="10"
+                            Background="#22C55E" Cursor="Hand" Margin="0,0,10,0"
+                            MouseLeftButtonUp="DarkModeToggle_Click" ToolTip="Chế độ tối">
+                        <Grid>
+                            <!-- Track -->
+                            <Border x:Name="ToggleTrack" CornerRadius="10"
+                                    Background="#22C55E"/>
+                            <!-- Thumb -->
+                            <Ellipse x:Name="ToggleThumb" Width="16" Height="16"
+                                     Fill="White" HorizontalAlignment="Left" Margin="2,0,0,0"
+                                     VerticalAlignment="Center"/>
+                            <!-- Icon -->
+                            <TextBlock x:Name="TxtDarkModeIcon" Text="☀️" FontSize="9"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                       Margin="0,0,3,0" Foreground="White" Opacity="0.9"/>
+                        </Grid>
+                    </Border>
+
                     <TextBlock x:Name="TxtUserStatus" Text="👤 Khách" Foreground="White" FontSize="11" Opacity="0.9"/>
                 </StackPanel>
             </Grid>
@@ -206,7 +230,8 @@
         </Border>
 
         <!-- ===== SEARCH BAR (floats over banner bottom) ===== -->
-        <Border Grid.Row="2" Margin="16,-24,16,0" Background="White" CornerRadius="16" Height="52"
+        <Border Grid.Row="2" Margin="16,-24,16,0" x:Name="SearchBarBorder"
+                Background="{StaticResource SurfaceBrush}" CornerRadius="16" Height="52"
                 Panel.ZIndex="10">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="20" Opacity="0.18" ShadowDepth="6" Direction="270"/>
@@ -235,10 +260,10 @@
         </Border>
 
         <!-- ===== CATEGORY FILTER ===== -->
-        <Border Grid.Row="3" Margin="0,28,0,0" Background="{StaticResource BackgroundBrush}" Padding="0,10,0,8">
+        <Border Grid.Row="3" Margin="0,28,0,0" Background="{DynamicResource BackgroundBrush}" Padding="0,10,0,8">
             <StackPanel>
                 <TextBlock x:Name="TxtCategoriesLabel" Text="DANH MỤC" FontSize="12" FontWeight="Bold"
-                           Foreground="{StaticResource TextSecondaryBrush}" Margin="16,0,0,8"
+                           Foreground="{DynamicResource TextSecondaryBrush}" Margin="16,0,0,8"
                            Opacity="0.7"/>
                 <ScrollViewer x:Name="CategoryScroll" HorizontalScrollBarVisibility="Hidden"
                               VerticalScrollBarVisibility="Disabled"
@@ -288,7 +313,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <!-- Mobile-style horizontal card -->
-                            <Border Margin="4,6" Background="White" CornerRadius="16"
+                            <Border Margin="4,6" Background="{StaticResource SurfaceBrush}" CornerRadius="16"
                                     Cursor="Hand">
                                 <Border.Effect>
                                     <DropShadowEffect BlurRadius="10" Opacity="0.08" ShadowDepth="3"/>
@@ -302,7 +327,7 @@
                                     <!-- Image -->
                                     <Border Grid.Column="0" CornerRadius="16,0,0,16" ClipToBounds="True"
                                             Background="#E8E8E8">
-                                        <Image Source="{Binding Image}" Stretch="UniformToFill"/>
+                                        <Image Source="{Binding Image, Converter={StaticResource ImageConverter}}" Stretch="UniformToFill"/>
                                     </Border>
 
                                     <!-- Content -->
@@ -315,7 +340,7 @@
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Grid.Row="0" Text="{Binding Name}" FontSize="15"
-                                                   FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"
                                                    TextTrimming="CharacterEllipsis"/>
 
                                         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
@@ -350,7 +375,8 @@
         </ScrollViewer>
 
         <!-- ===== BOTTOM NAVIGATION BAR ===== -->
-        <Border Grid.Row="5" Background="White" BorderBrush="#F0F0F0" BorderThickness="0,1,0,0">
+        <Border Grid.Row="5" x:Name="BottomNavBorder"
+                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="16" Opacity="0.12" ShadowDepth="-4" Direction="90"/>
             </Border.Effect>
@@ -365,7 +391,7 @@
                 <!-- Home (active) -->
                 <Button Grid.Column="0" Style="{StaticResource BottomNavStyle}">
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="🏠" FontSize="22" HorizontalAlignment="Center"/>
+                        <TextBlock Text="🏠" FontSize="22" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBlock x:Name="TxtNavHome" Text="Trang chủ" FontSize="10" HorizontalAlignment="Center"
                                    Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" Margin="0,2,0,0"/>
                     </StackPanel>
@@ -375,9 +401,9 @@
                 <Button Grid.Column="1" Style="{StaticResource BottomNavStyle}"
                         Click="OpenQRScanner">
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="📱" FontSize="22" HorizontalAlignment="Center"/>
+                        <TextBlock Text="📱" FontSize="22" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBlock x:Name="TxtNavQRScanner" Text="Quét QR" FontSize="10" HorizontalAlignment="Center"
-                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                     </StackPanel>
                 </Button>
 
@@ -385,9 +411,9 @@
                 <Button Grid.Column="2" Style="{StaticResource BottomNavStyle}"
                         Click="OpenFavorites">
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="⭐" FontSize="22" HorizontalAlignment="Center"/>
+                        <TextBlock Text="⭐" FontSize="22" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBlock x:Name="TxtNavFavorites" Text="Yêu thích" FontSize="10" HorizontalAlignment="Center"
-                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                     </StackPanel>
                 </Button>
 
@@ -395,9 +421,9 @@
                 <Button Grid.Column="3" Style="{StaticResource BottomNavStyle}"
                         Click="OpenProfile">
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="👤" FontSize="22" HorizontalAlignment="Center"/>
+                        <TextBlock Text="👤" FontSize="22" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBlock x:Name="TxtNavAccount" Text="Tài khoản" FontSize="10" HorizontalAlignment="Center"
-                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                     </StackPanel>
                 </Button>
             </Grid>

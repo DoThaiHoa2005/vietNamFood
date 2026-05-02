@@ -146,8 +146,36 @@ namespace VietnamFoodGuide.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = JsonSerializer.Deserialize<FavoritesResponse>(responseText);
-                    return result?.data ?? new List<FoodItem>();
+                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    var result = JsonSerializer.Deserialize<FavoritesApiResponse>(responseText, options);
+                    
+                    if (result != null && result.success && result.data != null)
+                    {
+                        var list = new List<FoodItem>();
+                        foreach (var apiFood in result.data)
+                        {
+                            list.Add(new FoodItem
+                            {
+                                Id = apiFood.Id,
+                                Name = apiFood.Name,
+                                City = apiFood.City,
+                                Category = apiFood.Category,
+                                Image = apiFood.ImagePath,
+                                DescriptionVI = apiFood.Description_VI,
+                                DescriptionEN = apiFood.Description_EN,
+                                DescriptionCN = apiFood.Description_CN,
+                                Latitude = apiFood.Latitude,
+                                Longitude = apiFood.Longitude,
+                                Rating = apiFood.Rating,
+                                Radius = apiFood.Radius,
+                                Priority = apiFood.Priority,
+                                AudioUrl = apiFood.AudioUrl,
+                                NarrationScript = apiFood.NarrationScript,
+                                CooldownMinutes = apiFood.CooldownMinutes
+                            });
+                        }
+                        return list;
+                    }
                 }
             }
             catch (Exception ex)
@@ -169,9 +197,29 @@ namespace VietnamFoodGuide.Services
         public string message { get; set; }
     }
 
-    public class FavoritesResponse
+    public class FavoritesApiResponse
     {
         public bool success { get; set; }
-        public List<FoodItem> data { get; set; }
+        public List<ApiFoodItem> data { get; set; }
+    }
+
+    public class ApiFoodItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string City { get; set; }
+        public string Category { get; set; }
+        public string Description_VI { get; set; }
+        public string Description_EN { get; set; }
+        public string Description_CN { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double Rating { get; set; }
+        public string ImagePath { get; set; }
+        public double Radius { get; set; }
+        public int Priority { get; set; }
+        public string AudioUrl { get; set; }
+        public string NarrationScript { get; set; }
+        public int CooldownMinutes { get; set; }
     }
 }

@@ -161,8 +161,24 @@ namespace VietnamFoodGuide.Views
                 // Handle messages from JavaScript
                 QRWebView.CoreWebView2.WebMessageReceived += OnQRScanned;
 
-                // Load QR scanner HTML
-                QRWebView.NavigateToString(GetQRScannerHTML());
+                // Write HTML to a temp file and serve over HTTPS using VirtualHost mapping
+                string tempFolder = Path.Combine(Path.GetTempPath(), "vfg_qr_scanner");
+                Directory.CreateDirectory(tempFolder);
+                string htmlPath = Path.Combine(tempFolder, "index.html");
+                File.WriteAllText(htmlPath, GetQRScannerHTML());
+
+                string assetsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets");
+                QRWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    "assets.local", 
+                    assetsPath, 
+                    Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+
+                QRWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    "qr.local", 
+                    tempFolder, 
+                    Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+
+                QRWebView.CoreWebView2.Navigate("https://qr.local/index.html");
 
                 LoadingOverlay.Visibility = Visibility.Collapsed;
             }
@@ -180,18 +196,26 @@ namespace VietnamFoodGuide.Views
                 var message = e.WebMessageAsJson;
                 var data = JsonSerializer.Deserialize<JsonElement>(message);
 
-                if (data.TryGetProperty("type", out var type) && type.GetString() == "qrScanned")
+                if (data.TryGetProperty("type", out var type))
                 {
-                    if (data.TryGetProperty("code", out var code))
+                    string typeStr = type.GetString();
+                    if (typeStr == "qrScanned")
                     {
-                        var qrCode = code.GetString();
-                        System.Diagnostics.Debug.WriteLine($"📱 [QR] Scanned: {qrCode}");
-                        
-                        if (!_hasScanned)
+                        if (data.TryGetProperty("code", out var code))
                         {
-                            _hasScanned = true;
-                            await SaveQRScan(qrCode);
+                            var qrCode = code.GetString();
+                            System.Diagnostics.Debug.WriteLine($"📱 [QR] Scanned: {qrCode}");
+                            
+                            if (!_hasScanned)
+                            {
+                                _hasScanned = true;
+                                await SaveQRScan(qrCode);
+                            }
                         }
+                    }
+                    else if (typeStr == "scanFailed")
+                    {
+                        ShowStatus(_lang.CurrentLanguage == "vi" ? "❌ Không tìm thấy mã QR trong ảnh. Vui lòng thử lại." : "❌ Could not find QR code in image. Please try again.", true);
                     }
                 }
             }
@@ -274,8 +298,14 @@ namespace VietnamFoodGuide.Views
                     var imagePath = openFileDialog.FileName;
                     System.Diagnostics.Debug.WriteLine($"📁 [QR] Selected image: {imagePath}");
                     
-                    // Send image to JavaScript for QR decoding
-                    var script = $"decodeQRFromImage('{imagePath.Replace("\\", "\\\\")}');";
+                    // Copy file to temp folder so JS can load it via https://qr.local
+                    string tempFolder = Path.Combine(Path.GetTempPath(), "vfg_qr_scanner");
+                    string fileName = "upload_" + Guid.NewGuid().ToString("N") + Path.GetExtension(imagePath);
+                    string destPath = Path.Combine(tempFolder, fileName);
+                    File.Copy(imagePath, destPath, true);
+                    
+                    // Send fileName to JavaScript
+                    var script = $"decodeQRFromImage('{fileName}');";
                     QRWebView.CoreWebView2?.ExecuteScriptAsync(script);
                     
                     ShowStatus(_lang.CurrentLanguage == "vi" ? "🔍 Đang quét ảnh..." : "🔍 Scanning image...", false);
@@ -352,7 +382,8 @@ namespace VietnamFoodGuide.Views
 <head>
     <meta charset='utf-8'/>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <script src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'></script>
+    <!-- Use local library mapping to work offline -->
+    <script src='https://assets.local/html5-qrcode.min.js'></script>
     <style>
         body { margin: 0; padding: 0; background: #f8f9fa; font-family: Arial, sans-serif; }
         #reader { width: 100%; height: 350px; }
@@ -407,11 +438,33 @@ namespace VietnamFoodGuide.Views
             document.getElementById('status').innerHTML = '❌ Camera not available. Please use Select Image button.';
         });
 
-        // Function to decode QR from image file
-        function decodeQRFromImage(imagePath) {
-            // This would need additional implementation
-            // For now, we'll use the file input method
-            console.log('Decode from image:', imagePath);
+        // Function to decode QR from uploaded file
+        function decodeQRFromImage(fileName) {
+            fetch('https://qr.local/' + fileName)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], fileName, { type: blob.type });
+                    html5QrCode.scanFileV2(file, true)
+                        .then(decodedResult => {
+                            onScanSuccess(decodedResult.decodedText, decodedResult);
+                        })
+                        .catch(err => {
+                            console.error('File scan error:', err);
+                            document.getElementById('status').innerHTML = '❌ Could not find QR code in image';
+                            
+                            // Send fail message to C# to clear scanning status
+                            window.chrome.webview.postMessage(JSON.stringify({
+                                type: 'scanFailed'
+                            }));
+                        });
+                })
+                .catch(err => {
+                    console.error('Fetch error:', err);
+                    document.getElementById('status').innerHTML = '❌ Could not load image';
+                    window.chrome.webview.postMessage(JSON.stringify({
+                        type: 'scanFailed'
+                    }));
+                });
         }
     </script>
 </body>

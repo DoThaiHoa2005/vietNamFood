@@ -17,6 +17,9 @@ namespace VietnamFoodGuide.Views
         public FoodDetailWindow(FoodItem selectedFood)
         {
             InitializeComponent();
+            
+            // Apply current theme (dark/light)
+            ThemeService.Instance.ApplyTheme();
 
             _food = selectedFood ?? throw new ArgumentNullException(nameof(selectedFood));
 
@@ -27,10 +30,18 @@ namespace VietnamFoodGuide.Views
             // Set description based on current language
             UpdateDescription();
 
+            // Set image using converter
             if (!string.IsNullOrEmpty(_food.Image))
             {
-                try { FoodImage.Source = new BitmapImage(new Uri(_food.Image, UriKind.RelativeOrAbsolute)); }
-                catch { }
+                try 
+                { 
+                    var converter = new Converters.StringToImageSourceConverter();
+                    FoodImage.Source = converter.Convert(_food.Image, typeof(BitmapImage), null, System.Globalization.CultureInfo.CurrentCulture) as BitmapImage;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[FoodDetailWindow] Error loading image: {ex.Message}");
+                }
             }
 
             // Load favorite status
@@ -170,20 +181,33 @@ namespace VietnamFoodGuide.Views
         {
             try
             {
+                // OFFLINE-FIRST: Luôn load từ local storage trước để UI phản hồi ngay lập tức
+                _food.IsFavorite = _storageService.IsFavorite(_food.Name);
+                UpdateFavoriteButton();
+
                 if (App.CurrentApiUser != null)
                 {
-                    _food.IsFavorite = await _favoritesApiService.IsFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
+                    bool isOnline = await NetworkService.IsInternetAvailableAsync();
+                    if (isOnline)
+                    {
+                        // Kiểm tra với server xem trạng thái thực tế
+                        bool isFavOnServer = await _favoritesApiService.IsFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
+                        
+                        // Nếu server khác với local (VD: user đăng nhập thiết bị khác) -> Sync
+                        if (isFavOnServer != _food.IsFavorite)
+                        {
+                            _food.IsFavorite = isFavOnServer;
+                            if (isFavOnServer) _storageService.AddFavorite(_food);
+                            else _storageService.RemoveFavorite(_food.Name);
+                            UpdateFavoriteButton();
+                        }
+                    }
                 }
-                else
-                {
-                    _food.IsFavorite = _storageService.IsFavorite(_food.Name);
-                }
-                UpdateFavoriteButton();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[LoadFavoriteStatus] Error: {ex.Message}");
-                _food.IsFavorite = _storageService.IsFavorite(_food.Name);
+                // Giữ nguyên trạng thái local nếu có lỗi
                 UpdateFavoriteButton();
             }
         }
@@ -221,17 +245,40 @@ namespace VietnamFoodGuide.Views
                         return;
                     }
                     
+                    bool isOnline = await NetworkService.IsInternetAvailableAsync();
+                    
                     if (_food.IsFavorite)
                     {
-                        var result = await _favoritesApiService.RemoveFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
-                        if (result.success) _food.IsFavorite = false;
-                        else MessageDialog.ShowError($"{_lang["error"]}: {result.message}", _lang["error"]);
+                        // Xóa (Offline-First: Cập nhật local trước)
+                        _storageService.RemoveFavorite(_food.Name);
+                        _food.IsFavorite = false;
+                        
+                        if (isOnline)
+                        {
+                            _ = _favoritesApiService.RemoveFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
+                        }
                     }
                     else
                     {
-                        var result = await _favoritesApiService.AddFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
-                        if (result.success) _food.IsFavorite = true;
-                        else MessageDialog.ShowError($"{_lang["error"]}: {result.message}", _lang["error"]);
+                        // Thêm (Offline-First: Cập nhật local trước)
+                        _storageService.AddFavorite(_food);
+                        _food.IsFavorite = true;
+                        
+                        if (isOnline)
+                        {
+                            var result = await _favoritesApiService.AddFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
+                            if (result.success)
+                            {
+                                var sqliteFavorites = new SQLiteFavoritesService();
+                                sqliteFavorites.MarkAsSynced(App.CurrentApiUser.Id, _food.Id);
+                            }
+                        }
+                    }
+                    
+                    // Kích hoạt sync background
+                    if (isOnline)
+                    {
+                        _ = BackgroundSyncService.Instance.SyncNowAsync();
                     }
                 }
                 else

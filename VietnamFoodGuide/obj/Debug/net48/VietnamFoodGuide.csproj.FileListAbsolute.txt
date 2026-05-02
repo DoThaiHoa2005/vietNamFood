@@ -94,3 +94,16 @@ E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net48\VietnamF
 E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net48\VietnamF.FD772AB1.Up2Date
 E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net48\VietnamFoodGuide.exe
 E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net48\VietnamFoodGuide.pdb
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net48\Views\OfflineMapDownloadWindow.baml
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net48\Views\OfflineMapDownloadWindow.g.cs
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net48\GeneratedInternalTypeHelper.g.cs
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Debug\net48\VietnamFoodGuide_MarkupCompile.lref
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Debug\net48\Assets\html5-qrcode.min.js
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Debug\net48\Assets\Images\layers-2x.png
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Debug\net48\Assets\Images\layers.png
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Debug\net48\Assets\Images\marker-icon-2x.png
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Debug\net48\Assets\Images\marker-icon.png
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Debug\net48\Assets\Images\marker-shadow.png
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Debug\net48\Assets\leaflet-rotate.min.js
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Debug\net48\Assets\leaflet.css
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\bin\Debug\net48\Assets\leaflet.js

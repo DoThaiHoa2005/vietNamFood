@@ -16,6 +16,17 @@ namespace VietnamFoodGuide.Views
             TxtGreeting.Text = $"{_lang["hello"]}, {username}!";
             TxtUsername.Text = username;
 
+            // Apply dark mode
+            ThemeService.Instance.ApplyTheme();
+            bool isDark = ThemeService.Instance.IsDarkMode;
+            if (isDark)
+            {
+                DialogBorder.Background  = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0x1E, 0x1E, 0x2E));
+                DialogBorder.BorderBrush = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0x33, 0x33, 0x4E));
+            }
+
             // Subscribe to language changes
             _lang.LanguageChanged += (s, e) => UpdateLanguage();
         }

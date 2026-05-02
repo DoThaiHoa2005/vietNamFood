@@ -1,106 +1,85 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 using VietnamFoodGuide.Models;
 
 namespace VietnamFoodGuide.Services
 {
+    /// <summary>
+    /// Storage Service - Đã loại bỏ JSON, chuyển sang SQLite hoàn toàn
+    /// Favorites: SQLiteFavoritesService
+    /// Foods: SQLiteFoodService
+    /// QR Scans: QRScanService (SQLite)
+    /// </summary>
     public class StorageService
     {
         private readonly string storageDirectory;
-        private readonly string favoritesPath;
-        private readonly string cacheDirectory;
         private readonly string qrScanPath;
+        private readonly SQLiteFavoritesService _favoritesService;
 
         public StorageService()
         {
             storageDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VietnamFoodGuide");
-            cacheDirectory = Path.Combine(storageDirectory, "Cache");
-            favoritesPath = Path.Combine(storageDirectory, "favorites.json");
             qrScanPath = Path.Combine(storageDirectory, "qr_scanned.txt");
 
             if (!Directory.Exists(storageDirectory))
                 Directory.CreateDirectory(storageDirectory);
 
-            if (!Directory.Exists(cacheDirectory))
-                Directory.CreateDirectory(cacheDirectory);
+            _favoritesService = new SQLiteFavoritesService();
         }
 
-        // Favorites Management
+        // ============================================================
+        // FAVORITES - Chuyển sang SQLite (không dùng JSON nữa)
+        // ============================================================
+        
         public void AddFavorite(FoodItem item)
         {
-            var favorites = GetFavorites();
-            if (!favorites.Exists(f => f.Name == item.Name))
+            if (App.CurrentApiUser != null)
             {
-                favorites.Add(item);
-                SaveFavorites(favorites);
+                _favoritesService.AddFavorite(App.CurrentApiUser.Id, item.Id, item.Name);
             }
         }
 
         public void RemoveFavorite(string foodName)
         {
-            var favorites = GetFavorites();
-            favorites.RemoveAll(f => f.Name == foodName);
-            SaveFavorites(favorites);
+            // Tìm food theo tên để lấy ID
+            if (App.CurrentApiUser != null)
+            {
+                var foods = new SQLiteFoodService().LoadFoods();
+                var food = foods.Find(f => f.Name == foodName);
+                if (food != null)
+                {
+                    _favoritesService.RemoveFavorite(App.CurrentApiUser.Id, food.Id);
+                }
+            }
         }
 
         public List<FoodItem> GetFavorites()
         {
-            try
+            if (App.CurrentApiUser != null)
             {
-                if (File.Exists(favoritesPath))
-                {
-                    string json = File.ReadAllText(favoritesPath);
-                    return JsonSerializer.Deserialize<List<FoodItem>>(json) ?? new List<FoodItem>();
-                }
+                return _favoritesService.GetUserFavorites(App.CurrentApiUser.Id);
             }
-            catch { }
             return new List<FoodItem>();
         }
 
         public bool IsFavorite(string foodName)
         {
-            return GetFavorites().Exists(f => f.Name == foodName);
-        }
-
-        private void SaveFavorites(List<FoodItem> favorites)
-        {
-            try
+            if (App.CurrentApiUser != null)
             {
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string json = JsonSerializer.Serialize(favorites, options);
-                File.WriteAllText(favoritesPath, json);
-            }
-            catch { }
-        }
-
-        // Cache Management
-        public void CacheData(string key, string data)
-        {
-            try
-            {
-                string cachePath = Path.Combine(cacheDirectory, $"{key}.json");
-                File.WriteAllText(cachePath, data);
-            }
-            catch { }
-        }
-
-        public string GetCachedData(string key)
-        {
-            try
-            {
-                string cachePath = Path.Combine(cacheDirectory, $"{key}.json");
-                if (File.Exists(cachePath))
+                var foods = new SQLiteFoodService().LoadFoods();
+                var food = foods.Find(f => f.Name == foodName);
+                if (food != null)
                 {
-                    return File.ReadAllText(cachePath);
+                    return _favoritesService.IsFavorite(App.CurrentApiUser.Id, food.Id);
                 }
             }
-            catch { }
-            return null;
+            return false;
         }
 
-        // QR Scan Management
+        // ============================================================
+        // QR SCAN - Giữ lại file txt đơn giản (không cần SQLite cho cái này)
+        // ============================================================
         public void SaveQRScanned()
         {
             try

@@ -6,7 +6,7 @@
         Height="780" Width="400"
         MinHeight="600" MinWidth="360"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BackgroundBrush}"
+        Background="{DynamicResource BackgroundBrush}"
         ResizeMode="CanResize"
         Icon="/Assets/Images/banner.png">
 
@@ -67,7 +67,7 @@
 
         <!-- ===== SCROLLABLE CONTENT ===== -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      Background="{StaticResource BackgroundBrush}">
+                      Background="{DynamicResource BackgroundBrush}">
             <StackPanel Margin="16,16,16,8">
                 
                 <!-- Subtitle -->

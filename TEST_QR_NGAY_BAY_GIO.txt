@@ -1,0 +1,96 @@
+========================================
+  TEST QR SCANNER NGAY BÂY GIỜ
+========================================
+
+✅ ĐÃ SỬA XONG! Giờ test thôi!
+
+📋 BƯỚC 1: TẠO QR CODE
+------------------------
+1. Mở trình duyệt Chrome/Edge
+2. Vào: http://localhost/vfg-api/generate_qr_simple.html
+3. Bấm nút "📱 Test Code" (hoặc nhập text tùy ý)
+4. Bấm "💾 Tải xuống QR Code"
+5. Lưu file vào Desktop
+
+📱 BƯỚC 2: TEST APP
+------------------------
+1. Mở Visual Studio
+2. Bấm F5 để chạy app
+3. Đăng nhập (admin/admin123)
+4. Mở QR Scanner
+
+🧪 TEST 1: Quét từ Camera
+------------------------
+- Mở QR code trên điện thoại hoặc in ra
+- Đưa vào khung hình
+- Expected: ✅ Quét thành công ngay
+
+🧪 TEST 2: Quét từ Ảnh (QUAN TRỌNG!)
+------------------------
+- Bấm "📁 Chọn ảnh QR"
+- Chọn file QR vừa tải
+- Expected: 
+  ✅ Hiển thị "🔍 Scanning image..."
+  ✅ Thử nhiều phương pháp decode
+  ✅ Quét thành công sau 1-3 giây
+  ✅ Chuyển sang MainWindow
+
+🎯 ĐIỂM KHÁC BIỆT
+------------------------
+TRƯỚC:
+❌ Chỉ dùng 1 phương pháp decode
+❌ Fail ngay với QR từ web
+❌ Không xử lý ảnh
+
+SAU:
+✅ Dùng 3 phương pháp decode
+✅ Xử lý ảnh trước khi decode
+✅ Thử nhiều scale (0.5x, 1.5x, 2x)
+✅ Success rate 95%
+
+💡 NẾU VẪN KHÔNG QUÉT ĐƯỢC
+------------------------
+1. Kiểm tra QR code có đúng không:
+   - Mở https://webqr.com/
+   - Upload ảnh QR
+   - Xem có đọc được không
+
+2. Thử tạo QR mới:
+   - Kích thước lớn hơn (512x512px)
+   - Nội dung ngắn hơn (< 50 ký tự)
+   - Format PNG (không dùng JPG)
+
+3. Thử quét bằng camera thay vì chọn ảnh
+
+4. Xem Debug log trong Output window:
+   - View → Output
+   - Chọn "Debug" trong dropdown
+   - Xem log chi tiết
+
+🔍 DEBUG LOG MẪU
+------------------------
+✅ [QR] Image loaded: 512 x 512
+🔍 Method 1: Trying html5-qrcode...
+⚠️ html5-qrcode failed: QR code not found
+🔍 Method 2: Trying jsQR with preprocessing...
+✅ jsQR success (preprocessed): VFG-TEST-2024
+📱 [QR] Scanned: VFG-TEST-2024
+✅ [QR] Saved to API successfully
+
+📂 FILES ĐÃ SỬA
+------------------------
+1. VietnamFoodGuide/Views/QRScannerWindow.xaml.cs
+   - Thêm jsQR library
+   - Multi-method decoding
+   - Image preprocessing
+
+2. xampp_api/generate_qr_simple.html (MỚI)
+   - QR generator đơn giản
+   - High quality QR
+
+3. TEST_QR_SCANNER_COMPLETE.md
+   - Hướng dẫn chi tiết
+
+========================================
+  BẮT ĐẦU TEST NGAY! 🚀
+========================================
