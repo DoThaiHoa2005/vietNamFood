@@ -31,6 +31,16 @@ namespace VietnamFoodGuide.Services
 
                 var foods = JsonSerializer.Deserialize<List<FoodItem>>(json, options) ?? new List<FoodItem>();
                 
+                // Auto-generate Id for foods loaded from JSON (starting from 1000 to avoid conflict with database)
+                int autoId = 1000;
+                foreach (var food in foods)
+                {
+                    if (food.Id == 0) // If no Id set
+                    {
+                        food.Id = autoId++;
+                    }
+                }
+                
                 return foods;
             }
             catch (Exception ex)

@@ -22,6 +22,16 @@ namespace VietnamFoodGuide
         public static UserInfo CurrentApiUser { get; set; }
 
         /// <summary>
+        /// Session token for authentication
+        /// </summary>
+        public static string SessionToken { get; set; }
+
+        /// <summary>
+        /// Session expiry date
+        /// </summary>
+        public static DateTime? SessionExpiresAt { get; set; }
+
+        /// <summary>
         /// Database context (shared across application)
         /// </summary>
         public static ApplicationDbContext DbContext { get; set; }
@@ -30,31 +40,12 @@ namespace VietnamFoodGuide
         {
             base.OnStartup(e);
 
-            try
-            {
-                // Load configuration from appsettings.json
-                var configuration = new ConfigurationBuilder()
-                    .SetBasePath(System.AppDomain.CurrentDomain.BaseDirectory)
-                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                    .Build();
+            // ✅ KHÔNG khởi tạo Entity Framework Database nữa
+            // Chỉ dùng SQLite cho tất cả
+            System.Diagnostics.Debug.WriteLine("[App] Starting app without Entity Framework database");
 
-                // Initialize database with configuration
-                DbContext = new ApplicationDbContext(configuration);
-
-                // Create database if not exists and apply migrations
-                DbContext.Database.EnsureCreated();
-
-                // Seed foods if empty (on first run)
-                SeedFoodsIfEmpty();
-            }
-            catch (System.Exception ex)
-            {
-                MessageBox.Show($"Lỗi khởi tạo database: {ex.Message}",
-                               "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-
-            // Show login window instead of main window
-            LoginWindow loginWindow = new LoginWindow(DbContext);
+            // Show Login Window first
+            LoginWindow loginWindow = new LoginWindow(null); // Pass null vì không dùng DbContext
             loginWindow.Show();
         }
 

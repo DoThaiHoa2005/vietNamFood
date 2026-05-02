@@ -167,6 +167,7 @@
         }
 
         .stat-icon.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .stat-icon.info { background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%); }
         .stat-icon.success { background: linear-gradient(135deg, #2d7a4f 0%, #48bb78 100%); }
         .stat-icon.warning { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
         .stat-icon.danger { background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); }
@@ -781,12 +782,12 @@
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon success">
+                    <div class="stat-icon info">
                         <i class="fas fa-users"></i>
                     </div>
                     <div class="stat-info">
                         <h3 id="totalUsers">0</h3>
-                        <p>Người Dùng</p>
+                        <p>Tổng Người Dùng</p>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -920,12 +921,13 @@
                                 <th>Role</th>
                                 <th>Ngày Tạo</th>
                                 <th>Trạng Thái</th>
+                                <th>Đổi Role</th>
                                 <th>Hành Động</th>
                             </tr>
                         </thead>
                         <tbody id="usersBody">
                             <tr>
-                                <td colspan="6" class="loading">
+                                <td colspan="7" class="loading">
                                     <i class="fas fa-spinner"></i>
                                     <p>Đang tải dữ liệu...</p>
                                 </td>
@@ -1601,17 +1603,29 @@
             const tbody = document.getElementById('usersBody');
             
             if (!users || users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-users"></i><p>Chưa có người dùng</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i class="fas fa-users"></i><p>Chưa có người dùng</p></td></tr>';
                 return;
             }
 
-            tbody.innerHTML = users.map(user => `
-                <tr>
+            tbody.innerHTML = users.map(user => {
+                const isLocked = user.IsLocked == 1 || user.IsLocked === true;
+                const isAdmin = user.Role === 'Admin';
+                
+                return `
+                <tr style="${isLocked ? 'opacity: 0.6; background: #fff3cd;' : ''}">
                     <td><strong>#${user.Id}</strong></td>
-                    <td><i class="fas fa-user"></i> ${user.Username}</td>
-                    <td><span class="badge ${user.Role === 'Admin' ? 'badge-danger' : 'badge-success'}">${user.Role}</span></td>
+                    <td>
+                        <i class="fas fa-user"></i> ${user.Username}
+                        ${isLocked ? '<i class="fas fa-lock" style="color: #dc2626; margin-left: 8px;" title="Tài khoản bị khóa"></i>' : ''}
+                    </td>
+                    <td><span class="badge ${isAdmin ? 'badge-danger' : 'badge-success'}">${user.Role}</span></td>
                     <td>${new Date(user.CreatedDate).toLocaleDateString('vi-VN')}</td>
-                    <td><span class="badge badge-success"><i class="fas fa-check-circle"></i> Active</span></td>
+                    <td>
+                        <span class="badge ${isLocked ? 'badge-danger' : 'badge-success'}">
+                            <i class="fas ${isLocked ? 'fa-lock' : 'fa-check-circle'}"></i> 
+                            ${isLocked ? 'Locked' : 'Active'}
+                        </span>
+                    </td>
                     <td>
                         <select onchange="changeUserRole(${user.Id}, this.value)" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);">
                             <option value="">Đổi role</option>
@@ -1619,8 +1633,59 @@
                             <option value="Admin">→ Admin</option>
                         </select>
                     </td>
+                    <td>
+                        <button class="btn ${isLocked ? 'btn-success' : 'btn-danger'} btn-sm" onclick="toggleUserLock(${user.Id}, ${isLocked})" title="${isLocked ? 'Mở khóa' : 'Khóa tài khoản'}">
+                            <i class="fas ${isLocked ? 'fa-unlock' : 'fa-lock'}"></i>
+                        </button>
+                        ${!isAdmin ? `
+                        <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.Id}, '${user.Username}')" title="Xóa user">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        ` : ''}
+                    </td>
                 </tr>
-            `).join('');
+            `}).join('');
+        }
+
+        async function toggleUserLock(userId, isCurrentlyLocked) {
+            const action = isCurrentlyLocked ? 'mở khóa' : 'khóa';
+            if (!confirm(`Bạn có chắc muốn ${action} tài khoản này?`)) return;
+
+            try {
+                const res = await fetch(`${API_BASE}?action=toggle_user_lock`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`✅ ${data.message}`, 'success');
+                    loadUsers();
+                }
+            } catch (error) {
+                showToast('❌ Lỗi: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteUser(userId, username) {
+            if (!confirm(`⚠️ XÓA VĨNH VIỄN user "${username}"?\n\nHành động này không thể hoàn tác!`)) return;
+
+            try {
+                const res = await fetch(`${API_BASE}?action=delete_user&userId=${userId}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('✅ Đã xóa user thành công', 'success');
+                    loadUsers();
+                    loadStats(); // Cập nhật lại stats
+                } else {
+                    showToast('❌ ' + (data.error || 'Lỗi xóa user'), 'error');
+                }
+            } catch (error) {
+                showToast('❌ Lỗi: ' + error.message, 'error');
+            }
         }
 
         async function changeUserRole(userId, newRole) {
@@ -1811,9 +1876,9 @@
             
             loadTrackingData();
             
-            // Auto refresh every 5 seconds
+            // Auto refresh every 2 seconds for smooth real-time tracking
             if (trackingInterval) clearInterval(trackingInterval);
-            trackingInterval = setInterval(loadTrackingData, 5000);
+            trackingInterval = setInterval(loadTrackingData, 2000);
         }
 
         async function loadTrackingData() {
@@ -1834,117 +1899,243 @@
                 const tracking = trackingData.data || [];
                 const stats = statsData.data || {};
                 
-                updateTrackingStats(tracking, stats);
-                updateTrackingUserList(users, tracking);
-                updateTrackingMap(users, tracking);
+                // Merge users with tracking data and check online status
+                const mergedData = tracking.map(track => {
+                    const user = users.find(u => u.Id === track.UserId);
+                    return {
+                        ...track,
+                        Username: user ? user.Username : `User ${track.UserId}`,
+                        LastActiveTime: user ? user.LastActiveTime : null,
+                        isOnline: user && user.LastActiveTime ? isUserOnline(user.LastActiveTime) : false
+                    };
+                });
+                
+                updateTrackingStats(mergedData, stats);
+                updateTrackingUserList(mergedData);
+                updateTrackingMap(mergedData);
             } catch (error) {
                 console.error('Error loading tracking data:', error);
             }
         }
+        
+        // Helper function to check if user is online (active within 5 minutes)
+        function isUserOnline(lastActiveTime) {
+            if (!lastActiveTime) return false;
+            const lastActive = new Date(lastActiveTime);
+            const now = new Date();
+            const diffMinutes = (now - lastActive) / 1000 / 60;
+            return diffMinutes < 5;
+        }
 
-        function updateTrackingStats(tracking, stats) {
-            const online = tracking.filter(t => t.IsActive).length;
-            const navigating = tracking.filter(t => t.IsNavigating && t.IsActive).length;
+        function updateTrackingStats(mergedData, stats) {
+            // Count only users who are logged in (online) and have tracking active
+            const online = mergedData.filter(t => t.isOnline && (t.IsActive == 1 || t.IsActive === true)).length;
             
+            // Count only users who are ACTUALLY navigating (IsNavigating = true AND online)
+            const navigating = mergedData.filter(t => t.isOnline && (t.IsNavigating == 1 || t.IsNavigating === true) && (t.IsActive == 1 || t.IsActive === true)).length;
+            
+            // Debug: Log để kiểm tra
+            console.log('📊 [Tracking Stats]', {
+                totalMerged: mergedData.length,
+                online: online,
+                navigating: navigating,
+                mergedData: mergedData
+            });
+            
+            // Stats từ API đã đếm đúng từ database
+            // qrScanned: COUNT users WHERE QRScanned = TRUE
+            // appInstalled: COUNT users WHERE AppInstalled = TRUE
             document.getElementById('qrScannedUsers').textContent = stats.qrScanned || 0;
             document.getElementById('appInstalledUsers').textContent = stats.appInstalled || 0;
             document.getElementById('trackingOnline').textContent = online;
             document.getElementById('trackingNavigating').textContent = navigating;
         }
 
-        function updateTrackingUserList(users, tracking) {
+        function updateTrackingUserList(mergedData) {
             const listDiv = document.getElementById('trackingUserList');
-            const activeTracking = tracking.filter(t => t.IsActive);
             
-            if (activeTracking.length === 0) {
+            // Filter to show only users who are online (logged in within 5 minutes)
+            const onlineUsers = mergedData.filter(t => t.isOnline && (t.IsActive == 1 || t.IsActive === true));
+            
+            if (onlineUsers.length === 0) {
                 listDiv.innerHTML = '<div class="loading">Không có người dùng online</div>';
                 return;
             }
             
-            listDiv.innerHTML = activeTracking.map(track => {
-                const user = users.find(u => u.Id === track.UserId);
-                const userName = user ? user.Username : `User ${track.UserId}`;
+            listDiv.innerHTML = onlineUsers.map(track => {
                 const lastUpdate = new Date(track.LastUpdate).toLocaleTimeString('vi-VN');
+                const lastActive = track.LastActiveTime ? new Date(track.LastActiveTime).toLocaleTimeString('vi-VN') : '--';
                 
                 return `
                     <div class="tracking-user-item" onclick="focusTrackingUser(${track.UserId})">
                         <div class="tracking-user-header">
-                            <span class="tracking-user-name">${userName}</span>
-                            <span class="tracking-status"></span>
+                            <span class="tracking-user-name">
+                                <span style="display: inline-block; width: 8px; height: 8px; background: #2d7a4f; border-radius: 50%; margin-right: 6px;"></span>
+                                ${track.Username}
+                            </span>
+                            <span class="badge badge-success" style="font-size: 10px; padding: 2px 8px;">Online</span>
                         </div>
-                        <div class="tracking-user-info">📍 ${track.CurrentLat ? track.CurrentLat.toFixed(4) : '--'}, ${track.CurrentLng ? track.CurrentLng.toFixed(4) : '--'}</div>
-                        <div class="tracking-user-info">🕐 ${lastUpdate}</div>
-                        ${track.DestinationName ? `<div class="tracking-destination">🎯 ${track.DestinationName}</div>` : ''}
+                        <div class="tracking-user-info">📍 Vị trí: ${track.CurrentLat ? track.CurrentLat.toFixed(5) : '--'}, ${track.CurrentLng ? track.CurrentLng.toFixed(5) : '--'}</div>
+                        <div class="tracking-user-info">🕐 Cập nhật: ${lastUpdate}</div>
+                        <div class="tracking-user-info">💚 Hoạt động: ${lastActive}</div>
+                        ${track.DestinationName ? `<div class="tracking-destination">🎯 Đang đi đến: ${track.DestinationName}</div>` : ''}
                     </div>
                 `;
             }).join('');
         }
 
-        function updateTrackingMap(users, tracking) {
-            // Clear old markers
-            Object.values(trackingMarkers).forEach(marker => trackingMap.removeLayer(marker));
-            Object.values(trackingRoutes).forEach(route => trackingMap.removeLayer(route));
-            trackingMarkers = {};
-            trackingRoutes = {};
+        function updateTrackingMap(mergedData) {
+            // Don't clear all markers - we'll update them smoothly instead
+            const currentUserIds = new Set(mergedData.filter(t => t.isOnline && (t.IsActive == 1 || t.IsActive === true) && t.CurrentLat && t.CurrentLng).map(t => t.UserId));
             
-            // Add new markers
-            tracking.filter(t => t.IsActive && t.CurrentLat && t.CurrentLng).forEach(track => {
-                const user = users.find(u => u.Id === track.UserId);
-                const userName = user ? user.Username : `User ${track.UserId}`;
+            // Remove markers for users who are no longer online
+            Object.keys(trackingMarkers).forEach(userId => {
+                if (!currentUserIds.has(parseInt(userId))) {
+                    trackingMap.removeLayer(trackingMarkers[userId]);
+                    delete trackingMarkers[userId];
+                    if (trackingRoutes[userId]) {
+                        trackingMap.removeLayer(trackingRoutes[userId]);
+                        delete trackingRoutes[userId];
+                    }
+                }
+            });
+            
+            // Add new markers - only for online users
+            const onlineUsers = mergedData.filter(t => t.isOnline && (t.IsActive == 1 || t.IsActive === true) && t.CurrentLat && t.CurrentLng);
+            
+            onlineUsers.forEach(track => {
+                const newLatLng = L.latLng(track.CurrentLat, track.CurrentLng);
                 
-                // User marker
-                const marker = L.marker([track.CurrentLat, track.CurrentLng], {
-                    icon: L.divIcon({
-                        html: '<div style="width:20px;height:20px;background:#E63946;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>',
-                        iconSize: [26, 26],
-                        iconAnchor: [13, 13],
-                        className: ''
-                    })
-                }).addTo(trackingMap);
-                
-                marker.bindPopup(`
-                    <div style="min-width: 200px;">
-                        <div style="font-weight: 600; margin-bottom: 8px;">👤 ${userName}</div>
-                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">📍 ${track.CurrentLat.toFixed(6)}, ${track.CurrentLng.toFixed(6)}</div>
-                        <div style="font-size: 12px; color: #666;">🕐 ${new Date(track.LastUpdate).toLocaleString('vi-VN')}</div>
-                        ${track.DestinationName ? `<div style="font-size: 13px; color: #E63946; font-weight: 500; margin-top: 8px;">🎯 ${track.DestinationName}</div>` : ''}
-                    </div>
-                `);
-                
-                trackingMarkers[track.UserId] = marker;
-                
-                // Destination marker
-                if (track.DestinationLat && track.DestinationLng) {
-                    const destMarker = L.marker([track.DestinationLat, track.DestinationLng], {
+                // Check if marker already exists
+                if (trackingMarkers[track.UserId]) {
+                    // Update existing marker with smooth animation
+                    const marker = trackingMarkers[track.UserId];
+                    const oldLatLng = marker.getLatLng();
+                    
+                    // Only animate if position changed significantly (more than 5 meters)
+                    const distance = trackingMap.distance(oldLatLng, newLatLng);
+                    if (distance > 5) {
+                        // Smooth animation over 1.5 seconds
+                        animateMarker(marker, oldLatLng, newLatLng, 1500);
+                        
+                        // Update route if navigating
+                        if (track.DestinationLat && track.DestinationLng) {
+                            // Remove old route
+                            if (trackingRoutes[track.UserId]) {
+                                trackingMap.removeLayer(trackingRoutes[track.UserId]);
+                                delete trackingRoutes[track.UserId];
+                            }
+                            // Draw new route
+                            fetchOSRMRoute(
+                                track.CurrentLat, track.CurrentLng,
+                                track.DestinationLat, track.DestinationLng,
+                                track.UserId
+                            );
+                        }
+                    }
+                    
+                    // Update popup content
+                    const lastActive = track.LastActiveTime ? new Date(track.LastActiveTime).toLocaleString('vi-VN') : '--';
+                    marker.setPopupContent(`
+                        <div style="min-width: 220px;">
+                            <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                <span style="display: inline-block; width: 8px; height: 8px; background: #2d7a4f; border-radius: 50%;"></span>
+                                👤 ${track.Username}
+                                <span class="badge badge-success" style="font-size: 10px; padding: 2px 6px; margin-left: 4px;">Online</span>
+                            </div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">📍 Vị trí: ${track.CurrentLat.toFixed(6)}, ${track.CurrentLng.toFixed(6)}</div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">🕐 Cập nhật: ${new Date(track.LastUpdate).toLocaleString('vi-VN')}</div>
+                            <div style="font-size: 12px; color: #2d7a4f; font-weight: 500;">💚 Hoạt động: ${lastActive}</div>
+                            ${track.DestinationName ? `<div style="font-size: 13px; color: #E63946; font-weight: 500; margin-top: 8px;">🎯 Đang đi đến: ${track.DestinationName}</div>` : ''}
+                        </div>
+                    `);
+                } else {
+                    // Create new marker
+                    const marker = L.marker(newLatLng, {
                         icon: L.divIcon({
-                            html: '<div style="width:30px;height:30px;background:#457B9D;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;">🎯</div>',
-                            iconSize: [36, 36],
-                            iconAnchor: [18, 18],
+                            html: '<div style="width:20px;height:20px;background:#2d7a4f;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>',
+                            iconSize: [26, 26],
+                            iconAnchor: [13, 13],
                             className: ''
                         })
                     }).addTo(trackingMap);
                     
-                    destMarker.bindPopup(`
-                        <div style="min-width: 200px;">
-                            <div style="font-weight: 600; margin-bottom: 8px;">🎯 ${track.DestinationName || 'Điểm đến'}</div>
-                            <div style="font-size: 12px; color: #666;">👤 ${userName}</div>
+                    const lastActive = track.LastActiveTime ? new Date(track.LastActiveTime).toLocaleString('vi-VN') : '--';
+                    
+                    marker.bindPopup(`
+                        <div style="min-width: 220px;">
+                            <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                <span style="display: inline-block; width: 8px; height: 8px; background: #2d7a4f; border-radius: 50%;"></span>
+                                👤 ${track.Username}
+                                <span class="badge badge-success" style="font-size: 10px; padding: 2px 6px; margin-left: 4px;">Online</span>
+                            </div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">📍 Vị trí: ${track.CurrentLat.toFixed(6)}, ${track.CurrentLng.toFixed(6)}</div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">🕐 Cập nhật: ${new Date(track.LastUpdate).toLocaleString('vi-VN')}</div>
+                            <div style="font-size: 12px; color: #2d7a4f; font-weight: 500;">💚 Hoạt động: ${lastActive}</div>
+                            ${track.DestinationName ? `<div style="font-size: 13px; color: #E63946; font-weight: 500; margin-top: 8px;">🎯 Đang đi đến: ${track.DestinationName}</div>` : ''}
                         </div>
                     `);
                     
-                    // Draw route line
-                    const routeLine = L.polyline([
-                        [track.CurrentLat, track.CurrentLng],
-                        [track.DestinationLat, track.DestinationLng]
-                    ], {
-                        color: '#E63946',
-                        weight: 3,
-                        opacity: 0.6,
-                        dashArray: '10, 10'
-                    }).addTo(trackingMap);
+                    trackingMarkers[track.UserId] = marker;
                     
-                    trackingRoutes[track.UserId] = routeLine;
+                    // Draw route if navigating
+                    if (track.DestinationLat && track.DestinationLng) {
+                        // Destination marker
+                        const destMarker = L.marker([track.DestinationLat, track.DestinationLng], {
+                            icon: L.divIcon({
+                                html: '<div style="width:30px;height:30px;background:#457B9D;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;">🎯</div>',
+                                iconSize: [36, 36],
+                                iconAnchor: [18, 18],
+                                className: ''
+                            })
+                        }).addTo(trackingMap);
+                        
+                        destMarker.bindPopup(`
+                            <div style="min-width: 200px;">
+                                <div style="font-weight: 600; margin-bottom: 8px;">🎯 ${track.DestinationName || 'Điểm đến'}</div>
+                                <div style="font-size: 12px; color: #666;">👤 ${track.Username}</div>
+                            </div>
+                        `);
+                        
+                        // Draw route line using OSRM (real road routing)
+                        fetchOSRMRoute(
+                            track.CurrentLat, track.CurrentLng,
+                            track.DestinationLat, track.DestinationLng,
+                            track.UserId
+                        );
+                    }
                 }
             });
+        }
+
+        // Animate marker movement smoothly
+        function animateMarker(marker, startLatLng, endLatLng, duration) {
+            const startTime = Date.now();
+            const startLat = startLatLng.lat;
+            const startLng = startLatLng.lng;
+            const endLat = endLatLng.lat;
+            const endLng = endLatLng.lng;
+            
+            function frame() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Easing function for smooth animation
+                const easeProgress = progress < 0.5 
+                    ? 2 * progress * progress 
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
+                const currentLat = startLat + (endLat - startLat) * easeProgress;
+                const currentLng = startLng + (endLng - startLng) * easeProgress;
+                
+                marker.setLatLng([currentLat, currentLng]);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(frame);
+                }
+            }
+            
+            requestAnimationFrame(frame);
         }
 
         function focusTrackingUser(userId) {
@@ -1959,6 +2150,73 @@
                 });
                 event.target.closest('.tracking-user-item').classList.add('active');
             }
+        }
+
+        // Fetch real road route from OSRM
+        async function fetchOSRMRoute(startLat, startLng, endLat, endLng, userId) {
+            try {
+                const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const coordinates = route.geometry.coordinates;
+                    
+                    // Convert [lng, lat] to [lat, lng] for Leaflet
+                    const latLngs = coordinates.map(coord => [coord[1], coord[0]]);
+                    
+                    // Draw route line
+                    const routeLine = L.polyline(latLngs, {
+                        color: '#2d7a4f',
+                        weight: 4,
+                        opacity: 0.7,
+                        lineJoin: 'round',
+                        lineCap: 'round'
+                    }).addTo(trackingMap);
+                    
+                    // Add distance and duration info
+                    const distanceKm = (route.distance / 1000).toFixed(1);
+                    const durationMin = Math.round(route.duration / 60);
+                    
+                    routeLine.bindPopup(`
+                        <div style="text-align: center;">
+                            <div style="font-weight: 600; margin-bottom: 5px;">📍 Lộ trình</div>
+                            <div style="font-size: 12px;">🛣️ ${distanceKm} km</div>
+                            <div style="font-size: 12px;">⏱️ ${durationMin} phút</div>
+                        </div>
+                    `);
+                    
+                    trackingRoutes[userId] = routeLine;
+                    
+                    console.log(`✅ [OSRM] Đã vẽ route cho user ${userId}: ${distanceKm}km, ${durationMin}min`);
+                } else {
+                    console.error('❌ [OSRM] Không tìm thấy route:', data);
+                    // Fallback to straight line if OSRM fails
+                    drawStraightLine(startLat, startLng, endLat, endLng, userId);
+                }
+            } catch (error) {
+                console.error('❌ [OSRM] Lỗi khi fetch route:', error);
+                // Fallback to straight line if OSRM fails
+                drawStraightLine(startLat, startLng, endLat, endLng, userId);
+            }
+        }
+
+        // Fallback: Draw straight line if OSRM fails
+        function drawStraightLine(startLat, startLng, endLat, endLng, userId) {
+            const routeLine = L.polyline([
+                [startLat, startLng],
+                [endLat, endLng]
+            ], {
+                color: '#2d7a4f',
+                weight: 3,
+                opacity: 0.6,
+                dashArray: '10, 10'
+            }).addTo(trackingMap);
+            
+            trackingRoutes[userId] = routeLine;
+            console.log(`⚠️ [Fallback] Đã vẽ đường thẳng cho user ${userId}`);
         }
 
         function refreshTracking() {

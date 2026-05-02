@@ -90,12 +90,14 @@ switch ($action) {
         } elseif ($method === 'POST') {
             $d = json_decode(file_get_contents('php://input'), true);
             $stmt = $pdo->prepare("INSERT INTO Foods
-                (Name,City,Category,Description_VI,Description_EN,Description_CN,Latitude,Longitude,Rating,ImagePath)
-                VALUES (?,?,?,?,?,?,?,?,?,?)");
+                (Name,City,Category,Description_VI,Description_EN,Description_CN,Latitude,Longitude,Rating,ImagePath,Radius,Priority,AudioUrl,NarrationScript,CooldownMinutes)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             $stmt->execute([
                 $d['Name'], $d['City'], $d['Category'],
                 $d['Description_VI'], $d['Description_EN'], $d['Description_CN'],
-                $d['Latitude'], $d['Longitude'], $d['Rating'], $d['ImagePath']
+                $d['Latitude'], $d['Longitude'], $d['Rating'], $d['ImagePath'],
+                $d['Radius'] ?? 30.0, $d['Priority'] ?? 5, $d['AudioUrl'] ?? null,
+                $d['NarrationScript'] ?? null, $d['CooldownMinutes'] ?? 5
             ]);
             echo json_encode(["id" => $pdo->lastInsertId(), "message" => "Thêm thành công"]);
         }
@@ -109,12 +111,15 @@ switch ($action) {
             $stmt = $pdo->prepare("UPDATE Foods SET
                 Name=?, City=?, Category=?,
                 Description_VI=?, Description_EN=?, Description_CN=?,
-                Latitude=?, Longitude=?, Rating=?, ImagePath=?
+                Latitude=?, Longitude=?, Rating=?, ImagePath=?,
+                Radius=?, Priority=?, AudioUrl=?, NarrationScript=?, CooldownMinutes=?
                 WHERE Id=?");
             $stmt->execute([
                 $d['Name'], $d['City'], $d['Category'],
                 $d['Description_VI'], $d['Description_EN'], $d['Description_CN'],
                 $d['Latitude'], $d['Longitude'], $d['Rating'], $d['ImagePath'],
+                $d['Radius'] ?? 30.0, $d['Priority'] ?? 5, $d['AudioUrl'] ?? null,
+                $d['NarrationScript'] ?? null, $d['CooldownMinutes'] ?? 5,
                 $id
             ]);
             echo json_encode(["message" => "Cập nhật thành công"]);
@@ -134,7 +139,7 @@ switch ($action) {
         break;
 
     case 'users':
-        $stmt = $pdo->query("SELECT Id, Username, Role, CreatedDate FROM Users ORDER BY Id");
+        $stmt = $pdo->query("SELECT Id, Username, Role, IsLocked, CreatedDate FROM Users ORDER BY Id");
         echo json_encode($stmt->fetchAll());
         break;
 
@@ -203,6 +208,13 @@ switch ($action) {
                 break;
             }
             
+            // Kiểm tra tài khoản có bị khóa không
+            if ($user['IsLocked']) {
+                http_response_code(403);
+                echo json_encode(["error" => "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên."]);
+                break;
+            }
+            
             // Kiểm tra password với BCrypt
             $passwordValid = password_verify($password, $user['PasswordHash']);
             
@@ -226,6 +238,18 @@ switch ($action) {
             }
             
             if ($passwordValid) {
+                // Tạo session token
+                $token = bin2hex(random_bytes(32)); // Token ngẫu nhiên 64 ký tự
+                $expiresAt = date('Y-m-d H:i:s', strtotime('+7 days')); // Hết hạn sau 7 ngày
+                
+                // Lưu session vào database
+                $stmt = $pdo->prepare("INSERT INTO Sessions (UserId, Token, ExpiresAt, CreatedDate) VALUES (?, ?, ?, NOW())");
+                $stmt->execute([$user['Id'], $token, $expiresAt]);
+                
+                // Cập nhật LastActiveTime cho user
+                $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
+                $stmt->execute([$user['Id']]);
+                
                 // Đăng nhập thành công
                 echo json_encode([
                     "success" => true,
@@ -234,6 +258,8 @@ switch ($action) {
                         "username" => $user['Username'],
                         "role" => $user['Role']
                     ],
+                    "token" => $token,
+                    "expiresAt" => $expiresAt,
                     "message" => "Đăng nhập thành công"
                 ]);
             } else {
@@ -302,6 +328,82 @@ switch ($action) {
             echo json_encode([
                 "success" => true,
                 "message" => "Cập nhật role thành công"
+            ]);
+        }
+        break;
+
+    case 'toggle_user_lock':
+        // Khóa/Mở khóa tài khoản user
+        if ($method === 'PUT') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $userId = (int)($data['userId'] ?? 0);
+            
+            if ($userId <= 0) {
+                http_response_code(400);
+                echo json_encode(["error" => "UserId không hợp lệ"]);
+                break;
+            }
+            
+            // Lấy trạng thái hiện tại
+            $stmt = $pdo->prepare("SELECT IsLocked FROM Users WHERE Id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+            
+            if (!$user) {
+                http_response_code(404);
+                echo json_encode(["error" => "User không tồn tại"]);
+                break;
+            }
+            
+            // Đảo ngược trạng thái
+            $newStatus = !$user['IsLocked'];
+            $stmt = $pdo->prepare("UPDATE Users SET IsLocked = ? WHERE Id = ?");
+            $stmt->execute([$newStatus, $userId]);
+            
+            echo json_encode([
+                "success" => true,
+                "isLocked" => $newStatus,
+                "message" => $newStatus ? "Đã khóa tài khoản" : "Đã mở khóa tài khoản"
+            ]);
+        }
+        break;
+
+    case 'delete_user':
+        // Xóa user (chỉ xóa được User, không xóa được Admin)
+        if ($method === 'DELETE') {
+            $userId = (int)($_GET['userId'] ?? 0);
+            
+            if ($userId <= 0) {
+                http_response_code(400);
+                echo json_encode(["error" => "UserId không hợp lệ"]);
+                break;
+            }
+            
+            // Kiểm tra role
+            $stmt = $pdo->prepare("SELECT Role FROM Users WHERE Id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+            
+            if (!$user) {
+                http_response_code(404);
+                echo json_encode(["error" => "User không tồn tại"]);
+                break;
+            }
+            
+            // Không cho xóa Admin
+            if ($user['Role'] === 'Admin') {
+                http_response_code(403);
+                echo json_encode(["error" => "Không thể xóa tài khoản Admin. Chỉ có thể khóa."]);
+                break;
+            }
+            
+            // Xóa user (CASCADE sẽ tự động xóa Favorites, Sessions, UserTracking)
+            $stmt = $pdo->prepare("DELETE FROM Users WHERE Id = ?");
+            $stmt->execute([$userId]);
+            
+            echo json_encode([
+                "success" => true,
+                "message" => "Đã xóa user thành công"
             ]);
         }
         break;
@@ -403,7 +505,7 @@ switch ($action) {
                 $stmt->execute([
                     $currentLat, $currentLng,
                     $destLat, $destLng, $destName,
-                    $isNavigating, $isActive,
+                    $isNavigating ? 1 : 0, $isActive ? 1 : 0,
                     $userId
                 ]);
             } else {
@@ -417,7 +519,7 @@ switch ($action) {
                     $userId,
                     $currentLat, $currentLng,
                     $destLat, $destLng, $destName,
-                    $isNavigating, $isActive
+                    $isNavigating ? 1 : 0, $isActive ? 1 : 0
                 ]);
             }
             
@@ -430,7 +532,8 @@ switch ($action) {
 
     case 'getAppStats':
         // Lấy thống kê về QR scan và app install
-        $qrScanned = $pdo->query("SELECT COUNT(*) FROM Users WHERE QRScanned = 1")->fetchColumn();
+        // Đếm từ table qr_scans để chính xác hơn
+        $qrScanned = $pdo->query("SELECT COUNT(*) FROM qr_scans")->fetchColumn();
         $appInstalled = $pdo->query("SELECT COUNT(*) FROM Users WHERE AppInstalled = 1")->fetchColumn();
         $currentlyActive = $pdo->query("SELECT COUNT(*) FROM Users WHERE LastActiveTime > DATE_SUB(NOW(), INTERVAL 5 MINUTE)")->fetchColumn();
         
@@ -605,7 +708,7 @@ switch ($action) {
                 break;
             }
             
-            $stmt = $pdo->prepare("UPDATE UserTracking SET IsActive = 0, LastUpdate = NOW() WHERE UserId = ?");
+            $stmt = $pdo->prepare("UPDATE UserTracking SET IsActive = 0, IsNavigating = 0, DestinationName = '', DestinationLat = 0, DestinationLng = 0, LastUpdate = NOW() WHERE UserId = ?");
             $stmt->execute([$userId]);
             
             echo json_encode([
@@ -615,7 +718,229 @@ switch ($action) {
         }
         break;
 
+    // ============================================================
+    // QR SCAN ENDPOINTS
+    // ============================================================
+    
+    case 'saveQRScan':
+        // Lưu thông tin quét QR
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $deviceId = $data['deviceId'] ?? '';
+            $qrCode = $data['qrCode'] ?? '';
+            $deviceName = $data['deviceName'] ?? '';
+            $osVersion = $data['osVersion'] ?? '';
+            
+            if (empty($deviceId) || empty($qrCode)) {
+                http_response_code(400);
+                echo json_encode(["success" => false, "message" => "DeviceId và QRCode không được để trống"]);
+                break;
+            }
+            
+            // Kiểm tra xem device đã quét chưa
+            $stmt = $pdo->prepare("SELECT Id FROM qr_scans WHERE device_id = ?");
+            $stmt->execute([$deviceId]);
+            if ($stmt->fetch()) {
+                echo json_encode([
+                    "success" => true,
+                    "message" => "Device đã quét QR trước đó",
+                    "alreadyScanned" => true
+                ]);
+                break;
+            }
+            
+            // Lưu thông tin quét QR
+            $stmt = $pdo->prepare("
+                INSERT INTO qr_scans (device_id, qr_code, device_name, os_version, scan_date)
+                VALUES (?, ?, ?, ?, NOW())
+            ");
+            $stmt->execute([$deviceId, $qrCode, $deviceName, $osVersion]);
+            
+            echo json_encode([
+                "success" => true,
+                "message" => "Lưu QR scan thành công",
+                "scanId" => $pdo->lastInsertId()
+            ]);
+        }
+        break;
+
+    case 'checkQRScan':
+        // Kiểm tra xem device đã quét QR chưa
+        $deviceId = $_GET['deviceId'] ?? '';
+        
+        if (empty($deviceId)) {
+            echo json_encode(["hasScanned" => false]);
+            break;
+        }
+        
+        $stmt = $pdo->prepare("SELECT Id, scan_date FROM qr_scans WHERE device_id = ?");
+        $stmt->execute([$deviceId]);
+        $scan = $stmt->fetch();
+        
+        echo json_encode([
+            "hasScanned" => $scan ? true : false,
+            "scanDate" => $scan ? $scan['scan_date'] : null
+        ]);
+        break;
+
+    case 'getQRScans':
+        // Lấy danh sách tất cả QR scans (cho admin dashboard)
+        $stmt = $pdo->query("SELECT * FROM qr_scans ORDER BY scan_date DESC");
+        echo json_encode([
+            "success" => true,
+            "data" => $stmt->fetchAll()
+        ]);
+        break;
+
+    case 'getQRStats':
+        // Lấy thống kê QR scans
+        $totalScans = $pdo->query("SELECT COUNT(*) FROM qr_scans")->fetchColumn();
+        $todayScans = $pdo->query("SELECT COUNT(*) FROM qr_scans WHERE DATE(scan_date) = CURDATE()")->fetchColumn();
+        $weekScans = $pdo->query("SELECT COUNT(*) FROM qr_scans WHERE scan_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn();
+        
+        echo json_encode([
+            "success" => true,
+            "data" => [
+                "totalScans" => (int)$totalScans,
+                "todayScans" => (int)$todayScans,
+                "weekScans" => (int)$weekScans
+            ]
+        ]);
+        break;
+
+    // ============================================================
+    // SESSION MANAGEMENT ENDPOINTS
+    // ============================================================
+    
+    case 'validateSession':
+        // Kiểm tra session còn hạn không
+        $token = $_GET['token'] ?? '';
+        
+        if (empty($token)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Token không được để trống"]);
+            break;
+        }
+        
+        $stmt = $pdo->prepare("
+            SELECT s.*, u.Username, u.Role 
+            FROM Sessions s
+            JOIN Users u ON s.UserId = u.Id
+            WHERE s.Token = ? AND s.ExpiresAt > NOW()
+        ");
+        $stmt->execute([$token]);
+        $session = $stmt->fetch();
+        
+        if ($session) {
+            // Cập nhật LastActiveTime
+            $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
+            $stmt->execute([$session['UserId']]);
+            
+            echo json_encode([
+                "success" => true,
+                "user" => [
+                    "id" => $session['UserId'],
+                    "username" => $session['Username'],
+                    "role" => $session['Role']
+                ]
+            ]);
+        } else {
+            http_response_code(401);
+            echo json_encode(["error" => "Session không hợp lệ hoặc đã hết hạn"]);
+        }
+        break;
+    
+    case 'updateActivity':
+        // Cập nhật LastActiveTime (gọi mỗi 30 giây từ app)
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $token = $data['token'] ?? '';
+            
+            if (empty($token)) {
+                http_response_code(400);
+                echo json_encode(["error" => "Token không được để trống"]);
+                break;
+            }
+            
+            // Kiểm tra session còn hạn
+            $stmt = $pdo->prepare("SELECT UserId FROM Sessions WHERE Token = ? AND ExpiresAt > NOW()");
+            $stmt->execute([$token]);
+            $session = $stmt->fetch();
+            
+            if ($session) {
+                // Cập nhật LastActiveTime
+                $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
+                $stmt->execute([$session['UserId']]);
+                
+                echo json_encode([
+                    "success" => true,
+                    "message" => "Activity updated"
+                ]);
+            } else {
+                http_response_code(401);
+                echo json_encode(["error" => "Session không hợp lệ"]);
+            }
+        }
+        break;
+    
+    case 'logout':
+        // Xóa session khi logout
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $token = $data['token'] ?? '';
+            
+            if (!empty($token)) {
+                // Xóa session
+                $stmt = $pdo->prepare("DELETE FROM Sessions WHERE Token = ?");
+                $stmt->execute([$token]);
+            }
+            
+            echo json_encode([
+                "success" => true,
+                "message" => "Đăng xuất thành công"
+            ]);
+        }
+        break;
+    
+    case 'getActiveSessions':
+        // Lấy danh sách sessions đang active (cho admin dashboard)
+        $stmt = $pdo->query("
+            SELECT 
+                u.Id as user_id,
+                u.Username,
+                u.Role,
+                u.LastActiveTime,
+                COUNT(s.Id) as session_count,
+                MAX(s.CreatedDate) as last_login
+            FROM Users u
+            LEFT JOIN Sessions s ON u.Id = s.UserId AND s.ExpiresAt > NOW()
+            WHERE u.LastActiveTime > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+            GROUP BY u.Id, u.Username, u.Role, u.LastActiveTime
+            ORDER BY u.LastActiveTime DESC
+        ");
+        
+        echo json_encode([
+            "success" => true,
+            "data" => $stmt->fetchAll()
+        ]);
+        break;
+    
+    case 'getOnlineCount':
+        // Đếm số người online (active trong 5 phút)
+        $count = $pdo->query("
+            SELECT COUNT(DISTINCT u.Id) 
+            FROM Users u
+            WHERE u.LastActiveTime > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+        ")->fetchColumn();
+        
+        echo json_encode([
+            "success" => true,
+            "count" => (int)$count
+        ]);
+        break;
+
     default:
         http_response_code(404);
         echo json_encode(["error" => "Action không hợp lệ"]);
 }
+

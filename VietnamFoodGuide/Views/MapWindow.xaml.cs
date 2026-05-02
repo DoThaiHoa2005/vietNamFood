@@ -28,6 +28,8 @@ namespace VietnamFoodGuide.Views
         private DateTime _lastServerReport = DateTime.MinValue;
         private bool _isNavigating = false;
         private string _destinationName = "";
+        private double _destinationLat = 0;
+        private double _destinationLng = 0;
 
         public MapWindow(FoodItem food)
         {
@@ -39,6 +41,10 @@ namespace VietnamFoodGuide.Views
             SetRating(_food.Rating);
 
             _allFoods = LoadAllFoods();
+            
+            // Initialize language
+            UpdateUILanguage();
+            LanguageService.Instance.LanguageChanged += (s, e) => UpdateUILanguage();
 
             this.Opacity = 0;
             this.Loaded += (s, e) => {
@@ -118,10 +124,10 @@ namespace VietnamFoodGuide.Views
             }
         }
 
-        private async void ReportPositionToServer(double lat, double lng)
+        private async void ReportPositionToServer(double lat, double lng, bool forceImmediate = false)
         {
-            // Throttle: chỉ báo cáo mỗi 5 giây
-            if ((DateTime.Now - _lastServerReport).TotalSeconds < 5) return;
+            // Throttle: chỉ báo cáo mỗi 3 giây (trừ khi forceImmediate = true)
+            if (!forceImmediate && (DateTime.Now - _lastServerReport).TotalSeconds < 3) return;
             
             var user = App.CurrentApiUser;
             if (user == null) return;
@@ -136,17 +142,22 @@ namespace VietnamFoodGuide.Views
                         userId = user.Id,
                         currentLat = lat,
                         currentLng = lng,
+                        destinationLat = _destinationLat,
+                        destinationLng = _destinationLng,
                         destinationName = _destinationName,
                         isNavigating = _isNavigating,
                         isActive = true
                     };
 
                     var json = JsonSerializer.Serialize(data);
+                    System.Diagnostics.Debug.WriteLine($"📤 [Tracking] JSON gửi đi: {json}");
                     var content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json");
-                    await client.PostAsync($"{AppConfig.ApiBaseUrl}?action=updateTracking", content);
+                    var response = await client.PostAsync($"{AppConfig.ApiBaseUrl}?action=updateTracking", content);
+                    var responseBody = await response.Content.ReadAsStringAsync();
+                    System.Diagnostics.Debug.WriteLine($"📥 [Tracking] API response: {responseBody}");
                     
                     _lastServerReport = DateTime.Now;
-                    System.Diagnostics.Debug.WriteLine($"📡 [Tracking] Đã gửi vị trí User {user.Username} ({lat:F5}, {lng:F5}) lên server");
+                    System.Diagnostics.Debug.WriteLine($"📡 [Tracking] Đã gửi vị trí User {user.Username} ({lat:F5}, {lng:F5}) lên server - Navigate: {_isNavigating} (Force: {forceImmediate})");
                 }
             }
             catch (Exception ex)
@@ -159,13 +170,24 @@ namespace VietnamFoodGuide.Views
         {
             try
             {
-                string path = Path.Combine(AppContext.BaseDirectory, "Data", "foods.json");
-                if (!File.Exists(path)) return new List<FoodItem>();
-                string json = File.ReadAllText(path);
-                var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                return JsonSerializer.Deserialize<List<FoodItem>>(json, opts) ?? new List<FoodItem>();
+                // Load từ SQLite (offline) hoặc API (online)
+                var sqliteService = new SQLiteFoodService();
+                var foods = sqliteService.LoadFoods();
+                
+                if (foods != null && foods.Count > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MapWindow] Loaded {foods.Count} foods from SQLite");
+                    return foods;
+                }
+                
+                System.Diagnostics.Debug.WriteLine("[MapWindow] No foods found in SQLite");
+                return new List<FoodItem>();
             }
-            catch { return new List<FoodItem>(); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MapWindow] Error loading foods: {ex.Message}");
+                return new List<FoodItem>();
+            }
         }
 
         private async void InitializeWebView()
@@ -201,7 +223,7 @@ namespace VietnamFoodGuide.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"L?i: {ex.Message}\n\nC?i WebView2 Runtime t?i:\nhttps://go.microsoft.com/fwlink/p/?LinkId=2124703", "L?i B?n ??", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageDialog.ShowError($"Lỗi: {ex.Message}\n\nCài WebView2 Runtime tại:\nhttps://go.microsoft.com/fwlink/p/?LinkId=2124703", "Lỗi Bản đồ");
             }
         }
 
@@ -236,43 +258,42 @@ namespace VietnamFoodGuide.Views
             string userLat = _userLat.ToString(System.Globalization.CultureInfo.InvariantCulture);
             string userLng = _userLng.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-            string html = "<!DOCTYPE html><html><head><meta charset='utf-8'/>";
+            string html = "<!DOCTYPE html><html><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>";
             html += "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>";
             html += "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>";
             html += "<script src='https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.min.js'></script>";
             html += "<style>";
             html += "html,body{margin:0;padding:0;height:100%;width:100%;}";
             html += "#map{height:100%;width:100%;}";
-            html += ".btn-location{position:absolute;top:70px;right:15px;width:46px;height:46px;background:white;border:2px solid #ddd;border-radius:50%;cursor:pointer;font-size:22px;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all 0.2s;}";
+            html += ".btn-location{position:absolute;top:calc(70px + env(safe-area-inset-top));right:15px;width:52px;height:52px;background:white;border:2px solid #ddd;border-radius:50%;cursor:pointer;font-size:24px;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all 0.2s;}";
             html += ".btn-location:hover{background:#f0f0f0;transform:scale(1.1);box-shadow:0 4px 12px rgba(0,0,0,0.4);}";
             html += ".btn-location:active{transform:scale(0.95);}";
-            html += ".btn-compass{position:absolute;top:125px;right:15px;width:50px;height:50px;background:white;border:2px solid #ddd;border-radius:50%;cursor:pointer;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:background 0.2s,box-shadow 0.2s;}";
+            html += ".btn-compass{position:absolute;top:calc(135px + env(safe-area-inset-top));right:15px;width:52px;height:52px;background:white;border:2px solid #ddd;border-radius:50%;cursor:pointer;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:background 0.2s,box-shadow 0.2s;}";
             html += ".btn-compass:hover{background:#f8f8f8;box-shadow:0 4px 12px rgba(0,0,0,0.4);}";
             html += ".btn-compass:active{transform:scale(0.95);}";
             html += ".compass-arrow{width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:24px solid #EA4335;position:relative;transition:transform 0.3s ease-out;}";
             html += ".compass-arrow::after{content:'N';position:absolute;top:26px;left:-6px;font-size:10px;font-weight:bold;color:#5f6368;}";
             html += ".btn-compass.active{background:#e8f0fe;border-color:#1a73e8;}";
             html += ".top-controls{position:absolute;top:15px;right:15px;z-index:1000;display:flex;flex-direction:column;gap:8px;}";
-            html += ".language-selector{background:white;padding:8px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.2);border:none;cursor:pointer;font-size:14px;}";
             html += ".btn-test-mode{background:#ff9800;color:white;padding:8px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.2);border:none;cursor:pointer;font-size:12px;font-weight:600;}";
-            html += ".bottom-panel{position:fixed;bottom:0;left:0;right:0;background:white;border-radius:12px 12px 0 0;box-shadow:0 -2px 12px rgba(0,0,0,0.15);z-index:1000;transform:translateY(100%);transition:transform 0.3s ease;padding:8px 12px;height:auto;max-height:280px;overflow:visible;}";
+            html += ".bottom-panel{position:fixed;bottom:0;left:0;right:0;background:white;border-radius:16px 16px 0 0;box-shadow:0 -2px 12px rgba(0,0,0,0.15);z-index:1000;transform:translateY(100%);transition:transform 0.3s ease;padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom));height:auto;max-height:120px;overflow:visible;}";
             html += ".bottom-panel.show{transform:translateY(0);}";
             html += ".bottom-panel.auto-show{transform:translateY(0);}";
             html += ".panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}";
             html += ".close-btn{background:none;border:none;font-size:18px;cursor:pointer;color:#666;padding:2px;}";
-            html += ".route-title{font-size:14px;font-weight:600;color:#202124;margin:0;}";
-            html += ".route-subtitle{font-size:11px;color:#5f6368;margin:2px 0 4px;}";
+            html += ".route-title{font-size:14px;font-weight:600;color:#202124;margin:0;line-height:1.1;}";
+            html += ".route-subtitle{font-size:11px;color:#5f6368;margin:0 0 2px;line-height:1.1;}";
             html += ".action-buttons{display:flex;gap:6px;margin-top:4px;}";
-            html += ".btn-start-small{flex:1;padding:6px;background:#34a853;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;}";
-            html += ".btn-change-small{flex:1;padding:6px;background:#1a73e8;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;}";
-            html += ".suggestion-text{font-size:9px;color:#5f6368;text-align:center;margin-top:3px;font-style:italic;}";
-            html += ".navigation-info{background:#f8f9fa;padding:6px;border-radius:4px;margin:4px 0;font-size:11px;color:#202124;display:none;}";
-            html += ".nav-instruction{display:flex;align-items:center;gap:8px;padding:6px 10px;background:white;border-radius:6px;margin:4px 0;}";
-            html += ".nav-icon{font-size:24px;min-width:32px;text-align:center;}";
+            html += ".btn-start-small{flex:1;padding:8px;background:#34a853;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;min-height:40px;}";
+            html += ".btn-change-small{flex:1;padding:8px;background:#1a73e8;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;min-height:40px;}";
+            html += ".suggestion-text{font-size:11px;color:#5f6368;text-align:center;margin-top:4px;font-style:italic;display:none;}";
+            html += ".navigation-info{background:#f8f9fa;padding:4px 6px;border-radius:6px;margin:3px 0;font-size:10px;color:#202124;display:none;max-height:45px;overflow-y:auto;}";
+            html += ".nav-instruction{display:flex;align-items:center;gap:6px;padding:3px 5px;background:white;border-radius:6px;margin:2px 0;}";
+            html += ".nav-icon{font-size:22px;min-width:28px;text-align:center;line-height:1;}";
             html += ".nav-text{flex:1;}";
-            html += ".nav-distance{font-size:22px;font-weight:700;color:#202124;line-height:1;}";
-            html += ".nav-direction{font-size:12px;font-weight:500;color:#5f6368;margin-top:2px;}";
-            html += ".nav-street{font-size:14px;font-weight:600;color:#202124;margin-top:1px;}";
+            html += ".nav-distance{font-size:18px;font-weight:700;color:#202124;line-height:1;}";
+            html += ".nav-direction{font-size:10px;font-weight:500;color:#5f6368;margin-top:1px;line-height:1;}";
+            html += ".nav-street{font-size:12px;font-weight:600;color:#202124;margin-top:1px;line-height:1;}";
             html += ".search-panel{position:absolute;top:15px;left:15px;right:15px;background:white;padding:15px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:1000;display:none;}";
             html += ".search-input{width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;}";
             html += ".search-input:focus{border-color:#1a73e8;}";
@@ -297,11 +318,6 @@ namespace VietnamFoodGuide.Views
             html += "</style></head><body>";
             html += "<div id='map'></div>";
             html += "<div class='top-controls'>";
-            html += "<select class='language-selector' id='languageSelector' onchange='changeLanguage()'>";
-            html += "<option value='vi'>🇻🇳 Tiếng Việt</option>";
-            html += "<option value='en'>🇺🇸 English</option>";
-            html += "<option value='zh'>🇨🇳 中文</option>";
-            html += "</select>";
             html += "<button class='btn-test-mode' onclick='toggleTestMode()' id='btnTestMode'>🧪 Test Mode</button>";
             html += "</div>";
             html += "<button class='btn-location' onclick='recenterToUser()' title='Về vị trí hiện tại'>📍</button>";
@@ -309,8 +325,8 @@ namespace VietnamFoodGuide.Views
             html += "<div class='search-panel' id='searchPanel'>";
             html += "<input type='text' class='search-input' id='searchInput' placeholder='Nhập tên địa điểm (VD: Bến Thành, Bitexco, Nguyễn Huệ...)' onkeypress='handleSearchKeyPress(event)'>";
             html += "<div class='search-buttons'>";
-            html += "<button class='btn-primary' onclick='searchLocation()'>🔍 Tìm kiếm</button>";
-            html += "<button class='btn-danger' onclick='closeSearch()'>Hủy</button>";
+            html += "<button class='btn-primary' id='btnSearch' onclick='searchLocation()'></button>";
+            html += "<button class='btn-danger' id='btnCancelSearch' onclick='closeSearch()'></button>";
             html += "</div>";
             html += "<div class='search-results' id='searchResults'></div>";
             html += "</div>";
@@ -323,10 +339,10 @@ namespace VietnamFoodGuide.Views
             html += "</div>";
             html += "<div class='navigation-info' id='navigationInfo'></div>";
             html += "<div class='action-buttons'>";
-            html += "<button class='btn-start-small' id='btnStart' onclick='startNavigation()'>🚀 Bắt đầu</button>";
-            html += "<button class='btn-change-small' id='btnChangeStart' onclick='changeStartPoint()'>🔄 Đổi xuất phát</button>";
+            html += "<button class='btn-start-small' id='btnStart' onclick='startNavigation()'></button>";
+            html += "<button class='btn-change-small' id='btnChangeStart' onclick='changeStartPoint()'></button>";
             html += "</div>";
-            html += "<div class='suggestion-text' id='suggestionText'>💡 Gợi ý: Kéo điểm xanh để thay đổi vị trí xuất phát</div>";
+            html += "<div class='suggestion-text' id='suggestionText'></div>";
             html += "</div>";
             html += "<div class='error-panel' id='errorPanel'>";
             html += "<div class='error-title' id='errorTitle'>❌ Lỗi GPS</div>";
@@ -334,12 +350,12 @@ namespace VietnamFoodGuide.Views
             html += "<button class='error-button' onclick='closeError()'>Đóng</button>";
             html += "</div>";
             html += "<div class='start-location-panel' id='startLocationPanel'>";
-            html += "<div class='start-location-title'>🎯 Chọn điểm xuất phát</div>";
-            html += "<div class='start-location-subtitle'>Bạn muốn xuất phát từ đâu?</div>";
+            html += "<div class='start-location-title' id='startLocationTitle'></div>";
+            html += "<div class='start-location-subtitle' id='startLocationSubtitle'></div>";
             html += "<div class='start-location-buttons'>";
-            html += "<button class='btn-gps' onclick='useGPSLocation()'>📍 Dùng vị trí hiện tại (Tự động)</button>";
-            html += "<button class='btn-search-location' onclick='showSearchForStart()'>🔍 Tìm kiếm địa điểm</button>";
-            html += "<button class='btn-use-default' onclick='useDefaultLocation()'>🏢 Dùng vị trí mặc định (Bến Thành)</button>";
+            html += "<button class='btn-gps' id='btnUseGPS' onclick='useGPSLocation()'></button>";
+            html += "<button class='btn-search-location' id='btnSearchLocation' onclick='showSearchForStart()'></button>";
+            html += "<button class='btn-use-default' id='btnUseDefault' onclick='useDefaultLocation()'></button>";
             html += "</div>";
             html += "<div style='font-size:11px;color:#5f6368;margin-top:12px;text-align:left;line-height:1.5;'>";
             html += "📍 <b>Lưu ý:</b> Nếu máy không có GPS, app sẽ tự động dùng IP để xác định vị trí gần đúng.";
@@ -365,7 +381,9 @@ namespace VietnamFoodGuide.Views
             html += "  if(diag) { diag.style.display = 'block'; diag.innerHTML += '<div>Promise Reject: ' + event.reason + '</div>'; }";
             html += "});";
             
-            html += "var currentLanguage='vi';";
+            // Get current language from LanguageService
+            var currentLang = LanguageService.Instance.CurrentLanguage;
+            html += $"var currentLanguage='{currentLang}';";
             html += "var routeCache={};";
             html += "var translations={";
             html += "vi:{";
@@ -385,7 +403,14 @@ namespace VietnamFoodGuide.Views
             html += "arrived:'🎯 Đã đến nơi!',";
             html += "suggestion:'💡 Gợi ý: Kéo điểm xanh để thay đổi vị trí xuất phát',";
             html += "selectDestination:'Chọn điểm đến mới',";
-            html += "defaultDestination:'Mặc định đến quán này'";
+            html += "defaultDestination:'Mặc định đến quán này',";
+            html += "btnSearch:'🔍 Tìm kiếm',";
+            html += "btnCancel:'Hủy',";
+            html += "startLocationTitle:'🎯 Chọn điểm xuất phát',";
+            html += "startLocationSubtitle:'Bạn muốn xuất phát từ đâu?',";
+            html += "btnUseGPS:'📍 Dùng vị trí hiện tại (Tự động)',";
+            html += "btnSearchLocation:'🔍 Tìm kiếm địa điểm',";
+            html += "btnUseDefault:'🏢 Dùng vị trí mặc định (Bến Thành)'";
             html += "},";
             html += "en:{";
             html += "selectRestaurant:'Select a restaurant to start',";
@@ -404,7 +429,14 @@ namespace VietnamFoodGuide.Views
             html += "arrived:'🎯 Arrived!',";
             html += "suggestion:'💡 Tip: Drag the blue marker to change start location',";
             html += "selectDestination:'Select new destination',";
-            html += "defaultDestination:'Default to this restaurant'";
+            html += "defaultDestination:'Default to this restaurant',";
+            html += "btnSearch:'🔍 Search',";
+            html += "btnCancel:'Cancel',";
+            html += "startLocationTitle:'🎯 Choose Starting Point',";
+            html += "startLocationSubtitle:'Where do you want to start from?',";
+            html += "btnUseGPS:'📍 Use Current Location (Auto)',";
+            html += "btnSearchLocation:'🔍 Search Location',";
+            html += "btnUseDefault:'🏢 Use Default Location (Ben Thanh)'";
             html += "},";
             html += "zh:{";
             html += "selectRestaurant:'选择餐厅开始',";
@@ -415,10 +447,42 @@ namespace VietnamFoodGuide.Views
             html += "navigating:'正在导航...',";
             html += "stopNavigation:'⏹ 停止',";
             html += "ready:'准备开始',";
+            html += "searchPlaceholder:'输入地点名称（例如：边城、Bitexco、阮惠...）',";
+            html += "searching:'🔍 搜索中...',";
+            html += "noResults:'❌ 未找到地点',";
+            html += "gpsError:'GPS错误',";
+            html += "gettingLocation:'正在获取GPS位置...',";
+            html += "arrived:'🎯 已到达！',";
+            html += "suggestion:'💡 提示：拖动蓝色标记更改起点',";
+            html += "selectDestination:'选择新目的地',";
+            html += "defaultDestination:'默认到此餐厅',";
+            html += "btnSearch:'🔍 搜索',";
+            html += "btnCancel:'取消',";
+            html += "startLocationTitle:'🎯 选择起点',";
+            html += "startLocationSubtitle:'您想从哪里出发？',";
+            html += "btnUseGPS:'📍 使用当前位置（自动）',";
+            html += "btnSearchLocation:'🔍 搜索地点',";
+            html += "btnUseDefault:'🏢 使用默认位置（边城市场）'";
             html += "}";
             html += "};";
             html += "var webviewReady=false;";
-            html += "window.addEventListener('load',function(){setTimeout(function(){webviewReady=true;console.log('✅ [INIT] WebView ready');},500);});";
+            html += "window.addEventListener('load',function(){setTimeout(function(){webviewReady=true;console.log('✅ [INIT] WebView ready');updateButtonTexts();},500);});";
+            html += "function updateButtonTexts(){";
+            html += "var t=translations[currentLanguage];";
+            html += "if(!t)t=translations['vi'];";
+            html += "document.getElementById('btnStart').innerHTML=t.startNavigation;";
+            html += "document.getElementById('btnChangeStart').innerHTML=t.changeStart;";
+            html += "document.getElementById('suggestionText').innerHTML=t.suggestion;";
+            html += "document.getElementById('searchInput').placeholder=t.searchPlaceholder;";
+            html += "document.getElementById('btnSearch').innerHTML=t.btnSearch;";
+            html += "document.getElementById('btnCancelSearch').innerHTML=t.btnCancel;";
+            html += "document.getElementById('startLocationTitle').innerHTML=t.startLocationTitle;";
+            html += "document.getElementById('startLocationSubtitle').innerHTML=t.startLocationSubtitle;";
+            html += "document.getElementById('btnUseGPS').innerHTML=t.btnUseGPS;";
+            html += "document.getElementById('btnSearchLocation').innerHTML=t.btnSearchLocation;";
+            html += "document.getElementById('btnUseDefault').innerHTML=t.btnUseDefault;";
+            html += "console.log('🌐 [LANG] Updated button texts to:',currentLanguage);";
+            html += "}";
             html += "var foodRaw =" + markersJson + ";";
             html += "var foods = Array.isArray(foodRaw) ? foodRaw : [];";
             html += "var userPos={lat:" + userLat + ",lng:" + userLng + "};";
@@ -442,32 +506,66 @@ namespace VietnamFoodGuide.Views
             html += "userMarker=L.marker([userPos.lat,userPos.lng],{icon:userIcon,zIndexOffset:1000,draggable:true}).addTo(map);";
             html += "userMarker.bindPopup('<div style=\"text-align:center;font-weight:600;color:#1a73e8\">📍 Vị trí xuất phát<br><small style=\"color:#5f6368\">Kéo để di chuyển</small></div>');";
             html += "userMarker.on('dragstart',function(){if(routeLine){map.removeLayer(routeLine);routeLine=null;}if(arrowLine){map.removeLayer(arrowLine);arrowLine=null;}});";
-            html += "userMarker.on('dragend',function(){var pos=userMarker.getLatLng();userPos.lat=pos.lat;userPos.lng=pos.lng;window.chrome.webview.postMessage(JSON.stringify({type:'updateUserPosition',lat:pos.lat,lng:pos.lng}));userMarker.openPopup();if(currentDest){var t=translations[currentLanguage];if(currentLanguage==='vi'){document.getElementById('routeSubtitle').innerHTML='🔄 Đang tính lại đường đi từ vị trí mới...';}else if(currentLanguage==='en'){document.getElementById('routeSubtitle').innerHTML='🔄 Recalculating route from new position...';}else{document.getElementById('routeSubtitle').innerHTML='🔄 重新计算路线...';}setTimeout(function(){calculateRoute(currentDest.lat,currentDest.lng,currentDest.name);},100);}});";
+            html += "userMarker.on('dragend',function(){var pos=userMarker.getLatLng();userPos.lat=pos.lat;userPos.lng=pos.lng;window.chrome.webview.postMessage(JSON.stringify({type:'updateUserPosition',lat:pos.lat,lng:pos.lng}));openUserPopupSafely();if(currentDest){var t=translations[currentLanguage];if(currentLanguage==='vi'){document.getElementById('routeSubtitle').innerHTML='🔄 Đang tính lại đường đi từ vị trí mới...';}else if(currentLanguage==='en'){document.getElementById('routeSubtitle').innerHTML='🔄 Recalculating route from new position...';}else{document.getElementById('routeSubtitle').innerHTML='🔄 重新计算路线...';}setTimeout(function(){calculateRoute(currentDest.lat,currentDest.lng,currentDest.name);},100);}});";
             
             html += "function getCategoryIcon(category){";
             html += "var iconMap={";
-            html += "'Bánh Mì':'🥖',";
+            html += "'Hải sản':'🦐',";
+            html += "'Ốc':'🐚',";
             html += "'Bún':'🍜',";
+            html += "'Nướng':'🍢',";
+            html += "'Lẩu & Nướng':'🍲',";
+            html += "'Bánh Mì':'🥖',";
             html += "'Cơm':'🍚',";
             html += "'Phở':'🍲',";
             html += "'Bánh Khác':'🧁',";
-            html += "'Thức uống':'🥤'";
+            html += "'Thức uống':'☕',";
+            html += "'Cà phê':'☕',";
+            html += "'Coffee':'☕',";
+            html += "'Trà sữa':'🧋',";
+            html += "'Chè':'🍧',";
+            html += "'Gỏi cuốn':'🌯',";
+            html += "'Nem':'🥟',";
+            html += "'Bánh xèo':'🥞',";
+            html += "'Lẩu':'🍲',";
+            html += "'Hủ tiếu':'🍜',";
+            html += "'Mì':'🍜',";
+            html += "'Cháo':'🥣',";
+            html += "'Xôi':'🍚',";
+            html += "'Bánh bao':'🥟',";
+            html += "'Bánh cuốn':'🌯',";
+            html += "'Bánh tráng':'🍪',";
+            html += "'Kem':'🍦',";
+            html += "'Sinh tố':'🥤',";
+            html += "'Nước ép':'🧃',";
+            html += "'Ăn vặt':'🍿',";
+            html += "'Đồ nướng':'🍢',";
+            html += "'Thịt nướng':'🥩',";
+            html += "'Gà rán':'🍗',";
+            html += "'Pizza':'🍕',";
+            html += "'Burger':'🍔',";
+            html += "'Sandwich':'🥪',";
+            html += "'Sushi':'🍣',";
+            html += "'Ramen':'🍜',";
+            html += "'Dimsum':'🥟',";
+            html += "'Tráng miệng':'🍰',";
+            html += "'Bánh ngọt':'🧁'";
             html += "};";
             html += "return iconMap[category]||'🍽️';";
             html += "}";
             
-            html += "var foodIcon=L.divIcon({html:'<div style=\"background:#ea4335;color:white;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,0.3);border:3px solid white\">&#127836;</div>',iconSize:[40,40],iconAnchor:[20,20],popupAnchor:[0,-22],className:''});";
+            html += "var foodIcon=L.divIcon({html:'<div style=\"background:#ea4335;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 4px rgba(0,0,0,0.25);border:1.5px solid white\">&#127836;</div>',iconSize:[24,24],iconAnchor:[12,12],popupAnchor:[0,-14],className:''});";
             
             html += "foods.forEach(function(f){";
             html += "var icon=getCategoryIcon(f.category);";
-            html += "var customIcon=L.divIcon({html:'<div style=\"background:#ea4335;color:white;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 3px 10px rgba(0,0,0,0.4);border:3px solid white\">'+icon+'</div>',iconSize:[44,44],iconAnchor:[22,22],popupAnchor:[0,-24],className:''});";
+            html += "var customIcon=L.divIcon({html:'<div style=\"background:#ea4335;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 4px rgba(0,0,0,0.25);border:1.5px solid white\">'+icon+'</div>',iconSize:[24,24],iconAnchor:[12,12],popupAnchor:[0,-14],className:''});";
             html += "var marker=L.marker([f.lat,f.lng],{icon:customIcon}).addTo(map);";
             html += "var popupContent='<div style=\"min-width:240px;text-align:center\"><h3 style=\"color:#202124;font-size:18px;font-weight:600;margin:0 0 8px\">'+icon+' '+f.name+'</h3><div style=\"color:#f9ab00;font-size:15px;margin:6px 0;font-weight:500\">⭐ '+f.rating+'/5.0</div><div style=\"color:#5f6368;font-size:14px;margin:10px 0;text-align:left\">'+f.desc+'</div></div>';";
             html += "marker.bindPopup(popupContent,{maxWidth:320});";
             html += "marker.on('click',function(){selectRestaurant(f.lat,f.lng,f.name,f.rating);});";
             html += "});";
             
-            html += "map.on('click',function(e){if(selectingStart){userMarker.setLatLng(e.latlng);userPos.lat=e.latlng.lat;userPos.lng=e.latlng.lng;selectingStart=false;map.getContainer().style.cursor='';userMarker.openPopup();if(currentDest){var t=translations[currentLanguage];if(currentLanguage==='vi'){document.getElementById('routeSubtitle').innerHTML='🔄 Đang tính lại đường đi từ vị trí mới...';}else if(currentLanguage==='en'){document.getElementById('routeSubtitle').innerHTML='🔄 Recalculating route from new position...';}else{document.getElementById('routeSubtitle').innerHTML='🔄 重新计算路线...';}setTimeout(function(){calculateRoute(currentDest.lat,currentDest.lng,currentDest.name);},300);}}});";
+            html += "map.on('click',function(e){if(selectingStart){userMarker.setLatLng(e.latlng);userPos.lat=e.latlng.lat;userPos.lng=e.latlng.lng;selectingStart=false;map.getContainer().style.cursor='';openUserPopupSafely();if(currentDest){var t=translations[currentLanguage];if(currentLanguage==='vi'){document.getElementById('routeSubtitle').innerHTML='🔄 Đang tính lại đường đi từ vị trí mới...';}else if(currentLanguage==='en'){document.getElementById('routeSubtitle').innerHTML='🔄 Recalculating route from new position...';}else{document.getElementById('routeSubtitle').innerHTML='🔄 重新计算路线...';}setTimeout(function(){calculateRoute(currentDest.lat,currentDest.lng,currentDest.name);},300);}}});";
             html += "map.on('dragstart',function(){userInteractedWithMap=true;});";
             html += "map.on('zoomstart',function(){userInteractedWithMap=true;});";
             html += "function showBottomPanelHelper(){";
@@ -481,13 +579,10 @@ namespace VietnamFoodGuide.Views
             html += "setTimeout(updateMapPadding,100);";
             html += "}";
             html += "function updateMapPadding(){";
-            html += "var bottomPanel=document.getElementById('bottomPanel');";
-            html += "var isVisible=bottomPanel&&(bottomPanel.classList.contains('show')||bottomPanel.classList.contains('auto-show'));";
-            html += "var paddingBottom=isVisible?300:100;";
             html += "if(map&&userMarker&&isNavigating&&!userInteractedWithMap){";
             html += "var userLatLng=userMarker.getLatLng();";
-            html += "var offsetLatLng=[userLatLng.lat-0.0015,userLatLng.lng];";
-            html += "map.setView(offsetLatLng,map.getZoom(),{paddingBottomRight:[0,paddingBottom]});";
+            html += "var offsetLat = getCenterOffset();";
+            html += "map.setView([userLatLng.lat + offsetLat, userLatLng.lng], map.getZoom(), {animate:true});";
             html += "}";
             html += "}";
             
@@ -525,7 +620,6 @@ namespace VietnamFoodGuide.Views
             html += "}";
             html += "console.log('✅ [START] routeSteps có',routeSteps.length,'bước');";
             html += "isNavigating=true;";
-            html += "window.chrome.webview.postMessage(JSON.stringify({type:'navStateChanged',navigating:true,destinationName:currentDest.name}));";
             html += "userInteractedWithMap=false;";
             html += "currentStepIndex=0;";
             html += "lastSpokenStepIndex=-1;";
@@ -546,19 +640,33 @@ namespace VietnamFoodGuide.Views
             html += "document.getElementById('suggestionText').innerHTML='🧭 正在导航 - 请按照指示';";
             html += "}";
             html += "document.getElementById('navigationInfo').style.display='block';";
-            html += "var userLatLng=userMarker.getLatLng();var offsetLatLng=[userLatLng.lat-0.0015,userLatLng.lng];";
-            html += "var bottomPanel=document.getElementById('bottomPanel');";
-            html += "var isVisible=bottomPanel&&(bottomPanel.classList.contains('show')||bottomPanel.classList.contains('auto-show'));";
-            html += "var paddingBottom=isVisible?300:100;";
-            html += "map.setView(offsetLatLng,18,{paddingBottomRight:[0,paddingBottom]});";
+            html += "var userLatLng=userMarker.getLatLng();";
+            html += "var offsetLat = getCenterOffset();";
+            html += "map.setView([userLatLng.lat + offsetLat, userLatLng.lng], 18, {animate:true});";
             html += "console.log('🔄 [START] Gọi updateNavigation lần đầu');";
             html += "updateNavigation();";
             html += "if(navigationInterval)clearInterval(navigationInterval);";
             html += "navigationInterval=setInterval(updateNavigation,3000);";
             html += "console.log('✅ [START] Navigation đã bắt đầu thành công');";
+            html += "console.log('📡 [START] GỬI navStateChanged message SAU KHI set isNavigating=true');";
+            html += "if(window.chrome && window.chrome.webview){";
+            html += "  window.chrome.webview.postMessage(JSON.stringify({type:'navStateChanged',navigating:true,destinationName:currentDest.name,destinationLat:currentDest.lat,destinationLng:currentDest.lng}));";
+            html += "  console.log('✅ [START] Message navStateChanged (true) đã gửi');";
+            html += "}else{";
+            html += "  console.error('❌ [START] window.chrome.webview KHÔNG tồn tại!');";
+            html += "}";
+            html += "console.log('📡 [START] Gửi updateUserPosition để trigger ReportPositionToServer');";
+            html += "var currentPos = userMarker.getLatLng();";
+            html += "if(window.chrome && window.chrome.webview){";
+            html += "  window.chrome.webview.postMessage(JSON.stringify({type:'updateUserPosition',lat:currentPos.lat,lng:currentPos.lng}));";
+            html += "  console.log('✅ [START] Message updateUserPosition đã gửi');";
+            html += "}else{";
+            html += "  console.error('❌ [START] window.chrome.webview KHÔNG tồn tại!');";
+            html += "}";
             html += "}";
             html += "function stopNavigation(){";
             html += "isNavigating=false;";
+            html += "window.chrome.webview.postMessage(JSON.stringify({type:'navStateChanged',navigating:false,destinationName:'',destinationLat:0,destinationLng:0}));";
             html += "stopRealGPSTracking();";
             html += "if(navigationInterval){clearInterval(navigationInterval);navigationInterval=null;}";
             html += "if(repeatVoiceTimer){clearTimeout(repeatVoiceTimer);repeatVoiceTimer=null;}";
@@ -652,7 +760,7 @@ namespace VietnamFoodGuide.Views
             html += "userMarker.setLatLng([lat,lng]);";
             html += "userPos.lat=lat;userPos.lng=lng;";
             html += "map.setView([lat,lng],16);";
-            html += "userMarker.openPopup();";
+            html += "openUserPopupSafely();";
             html += "closeSearch();";
             html += "if(currentDest){";
             html += "var t=translations[currentLanguage];";
@@ -686,7 +794,7 @@ namespace VietnamFoodGuide.Views
             html += "userMarker.setLatLng([lat,lng]);";
             html += "userPos.lat=lat;userPos.lng=lng;";
             html += "map.setView([lat,lng],source==='gps'?17:15);";
-            html += "userMarker.openPopup();";
+            html += "openUserPopupSafely();";
             html += "closeError();";
             html += "if(currentDest){";
             html += "var recalcMsg=currentLanguage==='vi'?'🔄 Đang tính lại đường đi...':(currentLanguage==='en'?'🔄 Recalculating route...':'🔄 重新计算路线...');";
@@ -755,14 +863,65 @@ namespace VietnamFoodGuide.Views
             html += "getCurrentLocation();";
             html += "}";
             
+            html += "function getCenterOffset(){";
+            html += "  var topBarHeight = 100;";
+            html += "  var bottomPanel = document.getElementById('bottomPanel');";
+            html += "  var isBottomVisible = bottomPanel && (bottomPanel.classList.contains('show') || bottomPanel.classList.contains('auto-show'));";
+            html += "  var bottomBarHeight = isBottomVisible ? 120 : 0;";
+            html += "  var mapHeight = map.getSize().y;";
+            html += "  var visibleHeight = mapHeight - topBarHeight - bottomBarHeight;";
+            html += "  var centerY = topBarHeight + (visibleHeight / 2);";
+            html += "  var offsetPixels = (mapHeight / 2) - centerY;";
+            html += "  var zoom = map.getZoom();";
+            html += "  var metersPerPixel = 156543.03392 * Math.cos(userPos.lat * Math.PI / 180) / Math.pow(2, zoom);";
+            html += "  var offsetLat = offsetPixels * metersPerPixel / 111320;";
+            html += "  console.log('📐 [Offset] Map:'+mapHeight+'px Top:'+topBarHeight+'px Bottom:'+bottomBarHeight+'px → Offset:'+offsetLat.toFixed(6)+'° ('+offsetPixels.toFixed(0)+'px)');";
+            html += "  return offsetLat;";
+            html += "}";
+            html += "function getFitBoundsPadding(){";
+            html += "  var topBarHeight = 100;";
+            html += "  var bottomPanel = document.getElementById('bottomPanel');";
+            html += "  var isBottomVisible = bottomPanel && (bottomPanel.classList.contains('show') || bottomPanel.classList.contains('auto-show'));";
+            html += "  var bottomBarHeight = isBottomVisible ? 130 : 20;";
+            html += "  var leftPadding = 20;";
+            html += "  var rightPadding = 20;";
+            html += "  console.log('📐 [FitBounds] Padding - Top:'+topBarHeight+'px Bottom:'+bottomBarHeight+'px Left:'+leftPadding+'px Right:'+rightPadding+'px');";
+            html += "  return {paddingTopLeft:[leftPadding,topBarHeight],paddingBottomRight:[rightPadding,bottomBarHeight],maxZoom:17};";
+            html += "}";
             html += "function recenterToUser(){";
             html += "  if(userPos.lat && userPos.lng){";
-            html += "    var offsetLat = isNavigating ? -0.0008 : 0;";
+            html += "    var offsetLat = getCenterOffset();"; // ✅ Luôn luôn dùng offset
             html += "    map.setView([userPos.lat + offsetLat, userPos.lng], 18, {animate:true});";
-            html += "    if(userMarker) userMarker.openPopup();";
+            html += "    if(userMarker) openUserPopupSafely();";
             html += "  } else {";
             html += "    getCurrentLocation();";
             html += "  }";
+            html += "}";
+            html += "function openUserPopupSafely(){";
+            html += "  if(!userMarker) return;";
+            html += "  userMarker.openPopup();";
+            html += "  setTimeout(function(){";
+            html += "    var popup=userMarker.getPopup();";
+            html += "    if(!popup||!popup.isOpen()) return;";
+            html += "    var popupEl=popup._container;";
+            html += "    if(!popupEl) return;";
+            html += "    var rect=popupEl.getBoundingClientRect();";
+            html += "    var mapHeight=map.getSize().y;";
+            html += "    var bottomPanel=document.getElementById('bottomPanel');";
+            html += "    var isBottomVisible=bottomPanel&&(bottomPanel.classList.contains('show')||bottomPanel.classList.contains('auto-show'));";
+            html += "    var taskbarHeight=isBottomVisible?130:20;";
+            html += "    var popupBottom=rect.bottom;";
+            html += "    var taskbarTop=mapHeight-taskbarHeight;";
+            html += "    if(popupBottom>taskbarTop){";
+            html += "      var overlapPixels=popupBottom-taskbarTop+20;";
+            html += "      var currentCenter=map.getCenter();";
+            html += "      var zoom=map.getZoom();";
+            html += "      var metersPerPixel=156543.03392*Math.cos(currentCenter.lat*Math.PI/180)/Math.pow(2,zoom);";
+            html += "      var offsetLat=overlapPixels*metersPerPixel/111320;";
+            html += "      map.panBy([0,-overlapPixels],{animate:true,duration:0.3});";
+            html += "      console.log('📍 [Popup] Tự động pan map lên',overlapPixels.toFixed(0)+'px để không che popup');";
+            html += "    }";
+            html += "  },100);";
             html += "}";
             html += "function showSearchForStart(){";
             html += "hideStartLocationPanel();";
@@ -784,10 +943,6 @@ namespace VietnamFoodGuide.Views
             html += "autoSelectDefaultRestaurant();";
             html += "}";
             
-            html += "function changeLanguage(){";
-            html += "currentLanguage=document.getElementById('languageSelector').value;";
-            html += "updateUILanguage();";
-            html += "}";
             html += "function updateDestinationTitle(restaurantName){";
             html += "var suffix='';";
             html += "if(currentLanguage==='vi'){";
@@ -903,8 +1058,9 @@ namespace VietnamFoodGuide.Views
             html += "routeLine=L.polyline(cached.coords,{color:'#1A73E8',weight:6,opacity:1,lineJoin:'round',lineCap:'round',smoothFactor:1}).addTo(map);";
             html += "fullRouteCoords=cached.coords;";
             html += "routeSteps=cached.steps;";
+            html += "console.log('✅ [Cache] Route có',routeSteps.length,'steps');";
             html += "var bounds=L.latLngBounds([userLatLng,[lat,lng]]);";
-            html += "map.fitBounds(bounds,{padding:[80,80],paddingBottomRight:[80,180],maxZoom:16});";
+            html += "map.fitBounds(bounds,getFitBoundsPadding());";
             html += "var t=translations[currentLanguage];";
             html += "if(currentLanguage==='vi'){";
             html += "document.getElementById('routeSubtitle').innerHTML='🚗 '+cached.distance+' km • '+cached.duration+' phút';";
@@ -913,62 +1069,142 @@ namespace VietnamFoodGuide.Views
             html += "}else{";
             html += "document.getElementById('routeSubtitle').innerHTML='🚗 '+cached.distance+' km • '+cached.duration+' 分钟';";
             html += "}";
+            html += "isCalculatingRoute=false;";
             html += "return;";
             html += "}";
-            html += "console.log('🗺️ [Route] Tính toán đường đi ngắn nhất từ',userLatLng,'đến',[lat,lng]);";
+            html += "console.log('🗺️ [Route] Tính toán đường đi thực tế từ',userLatLng,'đến',[lat,lng]);";
             html += "var startTime=Date.now();";
-            html += "fetch('https://router.project-osrm.org/route/v1/driving/'+userLatLng.lng+','+userLatLng.lat+';'+lng+','+lat+'?overview=full&geometries=geojson&steps=true&alternatives=false',{signal:AbortSignal.timeout(8000)})";
-            html += ".then(function(res){if(!res.ok)throw new Error('Network error');return res.json();})";
+            
+            // Try OSRM first (best for Vietnam)
+            html += "var osrmUrl='https://router.project-osrm.org/route/v1/driving/'+userLatLng.lng+','+userLatLng.lat+';'+lng+','+lat+'?overview=full&geometries=geojson&steps=true&alternatives=false';";
+            html += "console.log('🌐 [Route] Thử OSRM API...');";
+            html += "fetch(osrmUrl,{signal:AbortSignal.timeout(15000)})";
+            html += ".then(function(res){";
+            html += "  if(!res.ok){";
+            html += "    console.warn('⚠️ [Route] OSRM failed with status:',res.status);";
+            html += "    throw new Error('OSRM failed');";
+            html += "  }";
+            html += "  return res.json();";
+            html += "})";
             html += ".then(function(data){";
-            html += "var elapsed=Date.now()-startTime;";
-            html += "console.log('✅ [Route] Tính toán xong trong',elapsed,'ms');";
-            html += "if(data.code==='Ok'&&data.routes&&data.routes[0]){";
-            html += "var coords=data.routes[0].geometry.coordinates.map(function(c){return[c[1],c[0]];});";
-            html += "fullRouteCoords=coords;";
-            html += "var distance=(data.routes[0].distance/1000).toFixed(1);";
-            html += "var duration=Math.round(data.routes[0].duration/60);";
-            html += "var steps=data.routes[0].legs&&data.routes[0].legs[0].steps?data.routes[0].legs[0].steps:[];";
-            html += "routeCache[cacheKey]={coords:coords,distance:distance,duration:duration,steps:steps};";
-            html += "routeLine=L.polyline(coords,{color:'#1A73E8',weight:6,opacity:1,lineJoin:'round',lineCap:'round',smoothFactor:1}).addTo(map);";
-            html += "var bounds=L.latLngBounds([userLatLng,[lat,lng]]);";
-            html += "map.fitBounds(bounds,{padding:[80,80],paddingBottomRight:[80,180],maxZoom:16});";
-            html += "var t=translations[currentLanguage];";
-            html += "if(currentLanguage==='vi'){";
-            html += "document.getElementById('routeSubtitle').innerHTML='🚗 '+distance+' km • '+duration+' phút';";
-            html += "}else if(currentLanguage==='en'){";
-            html += "document.getElementById('routeSubtitle').innerHTML='🚗 '+distance+' km • '+duration+' min';";
-            html += "}else{";
-            html += "document.getElementById('routeSubtitle').innerHTML='🚗 '+distance+' km • '+duration+' 分钟';";
-            html += "}";
-            html += "if(steps.length>0){routeSteps=steps;currentStepIndex=0;}";
-            html += "console.log('✅ Đường đi đã được tính toán. Steps:',routeSteps.length);";
-            html += "isCalculatingRoute=false;"; // Xong thành công
-            html += "}else{isCalculatingRoute=false;drawOfflineRoute(userLatLng,lat,lng,name,dist);}";
-            html += "}).catch(function(err){";
-            html += "console.error('❌ [Route] Lỗi:',err);";
-            html += "isCalculatingRoute=false;"; // Xong lỗi
-            html += "drawOfflineRoute(userLatLng,lat,lng,name,dist);";
+            html += "  var elapsed=Date.now()-startTime;";
+            html += "  console.log('✅ [Route] OSRM thành công trong',elapsed,'ms');";
+            html += "  if(data.code==='Ok'&&data.routes&&data.routes[0]){";
+            html += "    var coords=data.routes[0].geometry.coordinates.map(function(c){return[c[1],c[0]];});";
+            html += "    fullRouteCoords=coords;";
+            html += "    var distance=(data.routes[0].distance/1000).toFixed(1);";
+            html += "    var duration=Math.round(data.routes[0].duration/60);";
+            html += "    var steps=data.routes[0].legs&&data.routes[0].legs[0].steps?data.routes[0].legs[0].steps:[];";
+            html += "    routeCache[cacheKey]={coords:coords,distance:distance,duration:duration,steps:steps};";
+            html += "    routeLine=L.polyline(coords,{color:'#1A73E8',weight:6,opacity:1,lineJoin:'round',lineCap:'round',smoothFactor:1}).addTo(map);";
+            html += "    console.log('🗺️ [Route] Đã vẽ đường đi thực tế với',coords.length,'điểm');";
+            html += "    var bounds=L.latLngBounds([userLatLng,[lat,lng]]);";
+            html += "    map.fitBounds(bounds,getFitBoundsPadding());";
+            html += "    var t=translations[currentLanguage];";
+            html += "    if(currentLanguage==='vi'){";
+            html += "      document.getElementById('routeSubtitle').innerHTML='🚗 '+distance+' km • '+duration+' phút';";
+            html += "    }else if(currentLanguage==='en'){";
+            html += "      document.getElementById('routeSubtitle').innerHTML='🚗 '+distance+' km • '+duration+' min';";
+            html += "    }else{";
+            html += "      document.getElementById('routeSubtitle').innerHTML='🚗 '+distance+' km • '+duration+' 分钟';";
+            html += "    }";
+            html += "    if(steps.length>0){routeSteps=steps;currentStepIndex=0;}";
+            html += "    console.log('✅ Đường đi thực tế đã được tính toán. Steps:',routeSteps.length);";
+            html += "    console.log('📋 [DEBUG] Route steps:', JSON.stringify(steps.slice(0,5).map(function(s){return {type:s.maneuver.type,modifier:s.maneuver.modifier,name:s.name,distance:Math.round(s.distance)+'m'};})));";
+            html += "    isCalculatingRoute=false;";
+            html += "  }else{";
+            html += "    console.warn('⚠️ [Route] OSRM response invalid');";
+            html += "    throw new Error('Invalid OSRM response');";
+            html += "  }";
+            html += "})";
+            html += ".catch(function(err){";
+            html += "  console.warn('⚠️ [Route] OSRM failed:',err.message,'- Thử OpenRouteService...');";
+            
+            // Fallback to OpenRouteService
+            html += "  var orsUrl='https://api.openrouteservice.org/v2/directions/driving-car?start='+userLatLng.lng+','+userLatLng.lat+'&end='+lng+','+lat;";
+            html += "  fetch(orsUrl,{";
+            html += "    headers:{'Accept':'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8'},";
+            html += "    signal:AbortSignal.timeout(15000)";
+            html += "  })";
+            html += "  .then(function(res){";
+            html += "    if(!res.ok){";
+            html += "      console.warn('⚠️ [Route] OpenRouteService failed with status:',res.status);";
+            html += "      throw new Error('ORS failed');";
+            html += "    }";
+            html += "    return res.json();";
+            html += "  })";
+            html += "  .then(function(data){";
+            html += "    var elapsed=Date.now()-startTime;";
+            html += "    console.log('✅ [Route] OpenRouteService thành công trong',elapsed,'ms');";
+            html += "    if(data.features&&data.features[0]&&data.features[0].geometry){";
+            html += "      var coords=data.features[0].geometry.coordinates.map(function(c){return[c[1],c[0]];});";
+            html += "      fullRouteCoords=coords;";
+            html += "      var distance=(data.features[0].properties.segments[0].distance/1000).toFixed(1);";
+            html += "      var duration=Math.round(data.features[0].properties.segments[0].duration/60);";
+            html += "      var steps=data.features[0].properties.segments[0].steps||[];";
+            
+            // Convert ORS steps to OSRM format
+            html += "      routeSteps=steps.map(function(s){";
+            html += "        return {";
+            html += "          maneuver:{";
+            html += "            type:s.type===0?'depart':(s.type===10?'arrive':'turn'),";
+            html += "            modifier:s.type===1?'left':(s.type===2?'right':'straight'),";
+            html += "            location:[s.way_points[0][0],s.way_points[0][1]]";
+            html += "          },";
+            html += "          name:s.name||'',";
+            html += "          distance:s.distance";
+            html += "        };";
+            html += "      });";
+            
+            html += "      routeCache[cacheKey]={coords:coords,distance:distance,duration:duration,steps:routeSteps};";
+            html += "      routeLine=L.polyline(coords,{color:'#1A73E8',weight:6,opacity:1,lineJoin:'round',lineCap:'round',smoothFactor:1}).addTo(map);";
+            html += "      console.log('🗺️ [Route] Đã vẽ đường đi thực tế (ORS) với',coords.length,'điểm');";
+            html += "      var bounds=L.latLngBounds([userLatLng,[lat,lng]]);";
+            html += "      map.fitBounds(bounds,getFitBoundsPadding());";
+            html += "      var t=translations[currentLanguage];";
+            html += "      if(currentLanguage==='vi'){";
+            html += "        document.getElementById('routeSubtitle').innerHTML='🚗 '+distance+' km • '+duration+' phút';";
+            html += "      }else if(currentLanguage==='en'){";
+            html += "        document.getElementById('routeSubtitle').innerHTML='🚗 '+distance+' km • '+duration+' min';";
+            html += "      }else{";
+            html += "        document.getElementById('routeSubtitle').innerHTML='🚗 '+distance+' km • '+duration+' 分钟';";
+            html += "      }";
+            html += "      currentStepIndex=0;";
+            html += "      console.log('✅ Đường đi thực tế (ORS) đã được tính toán. Steps:',routeSteps.length);";
+            html += "      isCalculatingRoute=false;";
+            html += "    }else{";
+            html += "      console.warn('⚠️ [Route] ORS response invalid');";
+            html += "      throw new Error('Invalid ORS response');";
+            html += "    }";
+            html += "  })";
+            html += "  .catch(function(err2){";
+            html += "    console.error('❌ [Route] Cả 2 API đều thất bại. OSRM:',err.message,'ORS:',err2.message);";
+            html += "    console.error('❌ [Route] Fallback về đường chim bay (không khuyến nghị)');";
+            html += "    isCalculatingRoute=false;";
+            html += "    drawOfflineRoute(userLatLng,lat,lng,name,dist);";
+            html += "  });";
             html += "});";
             html += "}";
             
             html += "function drawOfflineRoute(userLatLng,lat,lng,name,dist){";
+            html += "console.warn('⚠️ [Route] Sử dụng đường chim bay (không chính xác) - API routing thất bại');";
             html += "var coords=[[userLatLng.lat,userLatLng.lng],[lat,lng]];";
             html += "fullRouteCoords=coords;";
-            html += "routeLine=L.polyline(coords,{color:'#EA4335',weight:6,opacity:1,lineJoin:'round',lineCap:'round'}).addTo(map);";
+            html += "routeLine=L.polyline(coords,{color:'#EA4335',weight:6,opacity:0.6,dashArray:'10, 10',lineJoin:'round',lineCap:'round'}).addTo(map);";
             html += "var bounds=L.latLngBounds([userLatLng,[lat,lng]]);";
-            html += "map.fitBounds(bounds,{padding:[80,80],paddingBottomRight:[80,180],maxZoom:16});";
+            html += "map.fitBounds(bounds,getFitBoundsPadding());";
             html += "var time=Math.round((parseFloat(dist)/30)*60);";
             html += "var t=translations[currentLanguage];";
             html += "if(currentLanguage==='vi'){";
-            html += "document.getElementById('routeSubtitle').innerHTML='🚗 ~'+dist+' km • ~'+time+' phút (đường thẳng)';";
+            html += "document.getElementById('routeSubtitle').innerHTML='⚠️ ~'+dist+' km • ~'+time+' phút (đường chim bay - không chính xác)';";
             html += "}else if(currentLanguage==='en'){";
-            html += "document.getElementById('routeSubtitle').innerHTML='🚗 ~'+dist+' km • ~'+time+' min (direct)';";
+            html += "document.getElementById('routeSubtitle').innerHTML='⚠️ ~'+dist+' km • ~'+time+' min (straight line - not accurate)';";
             html += "}else{";
-            html += "document.getElementById('routeSubtitle').innerHTML='🚗 ~'+dist+' km • ~'+time+' 分钟 (直线)';";
+            html += "document.getElementById('routeSubtitle').innerHTML='⚠️ ~'+dist+' km • ~'+time+' 分钟 (直线 - 不准确)';";
             html += "}";
             html += "routeSteps=[{";
             html += "maneuver:{type:'depart',location:[userLatLng.lng,userLatLng.lat]},";
-            html += "name:'Đường đi trực tiếp',";
+            html += "name:'Đường đi trực tiếp (không theo đường phố)',";
             html += "distance:parseFloat(dist)*1000";
             html += "},{";
             html += "maneuver:{type:'arrive',location:[lng,lat]},";
@@ -977,7 +1213,7 @@ namespace VietnamFoodGuide.Views
             html += "}];";
             html += "currentStepIndex=0;";
             html += "isNavigating=false;";
-            html += "console.log('✅ Đường đi offline đã được hiển thị');";
+            html += "console.log('⚠️ Đường chim bay đã được hiển thị (fallback)');";
             html += "}";
 
             html += "function updateNavigation(){";
@@ -1016,6 +1252,7 @@ namespace VietnamFoodGuide.Views
 
             html += "var instruction = getInstruction(step);";
             html += "var type = step.maneuver.type;";
+            html += "console.log('🧭 [NAV] Current step:', currentStepIndex, 'Type:', type, 'Name:', step.name, 'Distance:', Math.round(distToStep)+'m');";
 
             html += "window.spokenPhases = window.spokenPhases || {step:-1, phase:'', lastDist: 0};";
             html += "var phase = '';";
@@ -1029,7 +1266,7 @@ namespace VietnamFoodGuide.Views
             
             html += "if(phase && shouldSpeak){";
             html += "    var speechText = '';";
-            html += "    var streetName = step.name || 'đường';";
+            html += "    var streetName = (step.name && step.name !== '') ? step.name : (currentLanguage==='vi'?'đường này':'this road');";
             html += "    var distText = Math.round(distToStep) + ' mét';";
             
             html += "    if(currentLanguage === 'vi'){";
@@ -1062,22 +1299,31 @@ namespace VietnamFoodGuide.Views
             html += "else if(type==='turn'&&modifier==='right')icon='↱';";
             html += "else if(type==='arrive')icon='🎯';";
             
+            html += "console.log('🎯 [UI] Step',currentStepIndex,'Type:',type,'Name:',step.name,'Dist:',Math.round(distToStep)+'m');";
+            
             html += "if(currentLanguage==='vi'){";
             html += "    var dirText='';";
+            html += "    var streetName=(step.name&&step.name!=='')?step.name:'đường này';";
             html += "    if(type==='turn'&&modifier==='left')dirText='Rẽ trái';";
             html += "    else if(type==='turn'&&modifier==='right')dirText='Rẽ phải';";
             html += "    else if(type==='arrive')dirText='Đến nơi';";
+            html += "    else if(type==='depart')dirText='Bắt đầu';";
             html += "    else dirText='Tiếp tục';";
-            html += "    document.getElementById('navigationInfo').innerHTML='<div class=\"nav-instruction\"><div class=\"nav-icon\">'+icon+'</div><div class=\"nav-text\"><div class=\"nav-distance\">'+distNum+'<span style=\"font-size:14px;font-weight:400\">'+distUnit+'</span></div><div class=\"nav-direction\">'+dirText+'</div><div class=\"nav-street\">'+(step.name||'đường')+'</div></div></div>';";
+            html += "    console.log('📺 [UI] Hiển thị:',distNum+distUnit,dirText,streetName);";
+            html += "    document.getElementById('navigationInfo').innerHTML='<div class=\"nav-instruction\"><div class=\"nav-icon\">'+icon+'</div><div class=\"nav-text\"><div class=\"nav-distance\">'+distNum+'<span style=\"font-size:14px;font-weight:400\">'+distUnit+'</span></div><div class=\"nav-direction\">'+dirText+'</div><div class=\"nav-street\">'+streetName+'</div></div></div>';";
             html += "    document.getElementById('routeSubtitle').innerHTML='🧭 '+distRemaining+' • '+timeMin+' phút còn lại';";
             html += "} else {";
-            html += "    document.getElementById('navigationInfo').innerHTML='<div class=\"nav-instruction\"><div class=\"nav-icon\">'+icon+'</div><div class=\"nav-text\"><div class=\"nav-distance\">'+distNum+'<span style=\"font-size:14px;font-weight:400\">'+distUnit+'</span></div><div class=\"nav-direction\">'+(step.maneuver.type)+'</div><div class=\"nav-street\">'+(step.name||'street')+'</div></div></div>';";
+            html += "    var streetName=(step.name&&step.name!=='')?step.name:'this road';";
+            html += "    document.getElementById('navigationInfo').innerHTML='<div class=\"nav-instruction\"><div class=\"nav-icon\">'+icon+'</div><div class=\"nav-text\"><div class=\"nav-distance\">'+distNum+'<span style=\"font-size:14px;font-weight:400\">'+distUnit+'</span></div><div class=\"nav-direction\">'+(step.maneuver.type)+'</div><div class=\"nav-street\">'+streetName+'</div></div></div>';";
             html += "}";
             html += "updateRouteProgress();";
             html += "}";
             
             html += "function updateRouteProgress(){";
-            html += "if(!isNavigating||!fullRouteCoords||fullRouteCoords.length===0)return;";
+            html += "if(!isNavigating||!fullRouteCoords||fullRouteCoords.length===0){";
+            html += "    console.log('⏸️ [Progress] Skip - isNavigating:',isNavigating,'fullRouteCoords:',fullRouteCoords?fullRouteCoords.length:0);";
+            html += "    return;";
+            html += "}";
             html += "var userPos=userMarker.getLatLng();";
             html += "var closestIndex=0;";
             html += "var minDist=Infinity;";
@@ -1086,10 +1332,14 @@ namespace VietnamFoodGuide.Views
             html += "if(dist<minDist){minDist=dist;closestIndex=i;}";
             html += "}";
             html += "var remainingCoords=fullRouteCoords.slice(closestIndex);";
-            html += "if(remainingCoords.length<2)return;";
+            html += "if(remainingCoords.length<2){";
+            html += "    console.log('⏸️ [Progress] Skip - remainingCoords too short:',remainingCoords.length);";
+            html += "    return;";
+            html += "}";
             html += "if(routeLine){map.removeLayer(routeLine);routeLine=null;}";
             html += "if(arrowLine){map.removeLayer(arrowLine);arrowLine=null;}";
             html += "routeLine=L.polyline(remainingCoords,{color:'#1A73E8',weight:6,opacity:1,lineJoin:'round',lineCap:'round',smoothFactor:1}).addTo(map);";
+            html += "console.log('🔄 [Progress] Cập nhật route line. Remaining:',remainingCoords.length,'điểm');";
             html += "}";
             
             html += "window._navAudio = null;";
@@ -1117,10 +1367,20 @@ namespace VietnamFoodGuide.Views
             html += "  speakWeb(instruction, currentLanguage, forceSpeak);";
             html += "}";
             
-html += "function getInstruction(step){";
+            // ✅ Suppress Speech Recognition errors
+            html += "window.addEventListener('error', function(e){";
+            html += "  if(e.message && (e.message.includes('Speech Recognition') || e.message.includes('SpeechRecognition'))){";
+            html += "    e.preventDefault();";
+            html += "    e.stopPropagation();";
+            html += "    console.log('⚠️ [SPEECH] Speech Recognition error suppressed');";
+            html += "    return false;";
+            html += "  }";
+            html += "}, true);";
+            
+            html += "function getInstruction(step){";
             html += "var type=step.maneuver.type;";
             html += "var modifier=step.maneuver.modifier||'';";
-            html += "var name=step.name||'đường';";
+            html += "var name=(step.name&&step.name!=='')?step.name:(currentLanguage==='vi'?'đường này':(currentLanguage==='en'?'this road':'这条路'));";
             html += "var modVi=modifier==='left'?'Rẽ trái':(modifier==='right'?'Rẽ phải':(modifier==='slight left'?'Chếch sang trái':(modifier==='slight right'?'Chếch sang phải':(modifier==='sharp left'?'Ngoặt trái':(modifier==='sharp right'?'Ngoặt phải':(modifier==='uturn'?'Quay đầu lại':'Đi thẳng'))))));";
             html += "var modEn=modifier==='left'?'Turn left':(modifier==='right'?'Turn right':(modifier==='slight left'?'Slight left':(modifier==='slight right'?'Slight right':(modifier==='sharp left'?'Sharp left':(modifier==='sharp right'?'Sharp right':(modifier==='uturn'?'Make a U-turn':'Go straight'))))));";
             html += "var modZh=modifier==='left'?'左转':(modifier==='right'?'右转':(modifier==='slight left'?'向左微转':(modifier==='slight right'?'向右微转':(modifier==='sharp left'?'向左急转':(modifier==='sharp right'?'向右急转':(modifier==='uturn'?'掉头':'直行'))))));";
@@ -1180,10 +1440,7 @@ html += "function getInstruction(step){";
             html += "userMarker.setLatLng([newLat,newLng]);";
             html += "userPos.lat=newLat;userPos.lng=newLng;";
             html += "if(!userInteractedWithMap){";
-            html += "var offsetLatLng=[newLat-0.0015,newLng];";
-            html += "var bottomPanel=document.getElementById('bottomPanel');";
-            html += "var isVisible=bottomPanel&&(bottomPanel.classList.contains('show')||bottomPanel.classList.contains('auto-show'));";
-            html += "var paddingBottom=isVisible?300:100;";
+            html += "var offsetLat = getCenterOffset();";
             html += "var speedKmh=speed*3.6;";
             html += "var targetZoom=19;";
             html += "if(speedKmh>60) targetZoom=16;";
@@ -1192,7 +1449,7 @@ html += "function getInstruction(step){";
             html += "else if(speedKmh>1) targetZoom=19;";
             html += "var currentStep = routeSteps[currentStepIndex];";
             html += "if(currentStep && map.distance(userP, L.latLng(currentStep.maneuver.location[1], currentStep.maneuver.location[0])) < 50) targetZoom = 20;";
-            html += "map.setView(offsetLatLng,targetZoom,{animate:true,duration:0.5,paddingBottomRight:[0,paddingBottom]});";
+            html += "map.setView([newLat + offsetLat, newLng], targetZoom, {animate:true, duration:0.5});";
             html += "}";
             html += "updateNavigation();";
             html += "checkNearbyRestaurants(newLat,newLng);";
@@ -1230,8 +1487,18 @@ html += "function getInstruction(step){";
             html += "  testModeActive = !testModeActive;";
             html += "  var btn = document.getElementById('btnTestMode');";
             html += "  if(testModeActive){";
-            html += "    if(!isNavigating || !fullRouteCoords || fullRouteCoords.length === 0){";
-            html += "      alert('Vui lòng bắt đầu dẫn đường (🚀 Bắt đầu) trước khi bật Test Mode!');";
+            html += "    if(!currentDest){";
+            html += "      alert('Vui lòng chọn điểm đến trước!');";
+            html += "      testModeActive = false;";
+            html += "      return;";
+            html += "    }";
+            html += "    if(!isNavigating){";
+            html += "      console.log('🧪 Test Mode: Tự động bật navigation');";
+            html += "      startNavigation();";
+            html += "      setTimeout(function(){ if(!isNavigating || !fullRouteCoords || fullRouteCoords.length === 0){ alert('Không thể tính route. Vui lòng thử lại!'); testModeActive = false; return; } }, 1000);";
+            html += "    }";
+            html += "    if(!fullRouteCoords || fullRouteCoords.length === 0){";
+            html += "      alert('Đang tính route, vui lòng đợi...');";
             html += "      testModeActive = false;";
             html += "      return;";
             html += "    }";
@@ -1257,7 +1524,7 @@ html += "function getInstruction(step){";
             html += "        var currentStep = routeSteps[currentStepIndex];";
             html += "        var stepDist = currentStep ? currentStep.distance : 1000;";
             html += "        var zoomLevel = (stepDist < 30) ? 20 : (stepDist < 80) ? 19 : (stepDist < 150) ? 18 : (stepDist < 300) ? 17 : 16;";
-            html += "        var offsetLat = !compassEnabled ? -0.0012 : 0;";
+            html += "        var offsetLat = getCenterOffset();";
             html += "        map.setView([newLat + offsetLat, newLng], zoomLevel, {animate:true, duration:0.5});";
             html += "      }";
             html += "      window.chrome.webview.postMessage(JSON.stringify({type:'updateUserPosition', lat:newLat, lng:newLng}));";
@@ -1328,6 +1595,12 @@ html += "function getInstruction(step){";
             
             html += "window.chrome.webview.addEventListener('message',function(e){";
             html += "  var data=JSON.parse(e.data);";
+            html += "  if(data.type==='languageChanged'){";
+            html += "    console.log('🌐 [JS] Language changed to:', data.language);";
+            html += "    currentLanguage = data.language;";
+            html += "    updateButtonTexts();";
+            html += "    return;";
+            html += "  }";
             html += "  if(data.type==='gpsStatus'){";
             html += "    if(data.status==='disabled'){";
             html += "      var msg = currentLanguage==='vi'?'⚠️ Quyền truy cập vị trí đang bị TẮT trong Windows. Hãy bật lại trong Cài đặt Quyền riêng tư.':(currentLanguage==='en'?'⚠️ Location permission is DISABLED in Windows Settings.':'⚠️ 位置权限已禁用');";
@@ -1359,7 +1632,7 @@ html += "function getInstruction(step){";
             
             html += "    if(!userInteractedWithMap){";
             html += "      var currentZoom = map.getZoom();";
-            html += "      var offsetLat = isNavigating ? (currentZoom >= 18 ? -0.0025 : -0.0050) : 0;";
+            html += "      var offsetLat = getCenterOffset();"; // ✅ Luôn luôn dùng offset
             html += "      var targetZoom = isNavigating ? Math.max(currentZoom, 18) : currentZoom;";
             html += "      map.setView([finalLat + offsetLat, finalLng], targetZoom, {animate:true, duration:0.5});";
             html += "    }";
@@ -1394,10 +1667,27 @@ html += "function getInstruction(step){";
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"📨 [C#] Nhận được WebMessage: {e.WebMessageAsJson}");
-                var msg = JsonSerializer.Deserialize<Dictionary<string, string>>(e.WebMessageAsJson);
-                if (msg != null && msg.TryGetValue("type", out var type))
+                // e.WebMessageAsJson: nếu JS gọi postMessage(chuỗi) thì nó bọc thêm dấu ngoặc
+                // VD: JS post JSON.stringify({type:'x'}) → WebMessageAsJson = "\"{ type: 'x' }\""
+                // Cần giải mã JSON một lần để lấy ra chuỗi thực, rồi mới parse tiếp
+                string rawMessage = e.WebMessageAsJson;
+                System.Diagnostics.Debug.WriteLine($"📨 [C#] RAW MESSAGE: {rawMessage}");
+                
+                // Nếu đang bị double-encoded (wrapped in quotes), giải mã lần 1
+                if (rawMessage != null && rawMessage.StartsWith("\""))
+                    rawMessage = System.Text.Json.JsonSerializer.Deserialize<string>(rawMessage);
+                
+                using (JsonDocument doc = JsonDocument.Parse(rawMessage))
                 {
+                    var root = doc.RootElement;
+                    
+                    if (!root.TryGetProperty("type", out var typeElement))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"❌ [C#] Không có key 'type' trong message");
+                        return;
+                    }
+                    
+                    string type = typeElement.GetString();
                     System.Diagnostics.Debug.WriteLine($"📋 [C#] Message type: {type}");
                     
                     if (type == "map_ready")
@@ -1407,8 +1697,9 @@ html += "function getInstruction(step){";
                     }
                     else if (type == "selectFood")
                     {
-                        if (msg.TryGetValue("name", out var name))
+                        if (root.TryGetProperty("name", out var nameElement))
                         {
+                            string name = nameElement.GetString();
                             var food = _allFoods.FirstOrDefault(f => f.Name == name);
                             if (food != null) AutoNarrate(food);
                         }
@@ -1416,51 +1707,136 @@ html += "function getInstruction(step){";
                     else if (type == "voiceNavigation")
                     {
                         System.Diagnostics.Debug.WriteLine($"🔊 [C#] Nhận được voiceNavigation message");
-                        // Chỉ đường bằng giọng nói
-                        if (msg.TryGetValue("text", out var text) && msg.TryGetValue("language", out var language))
+                        if (root.TryGetProperty("text", out var textElement) && root.TryGetProperty("language", out var langElement))
                         {
+                            string text = textElement.GetString();
+                            string language = langElement.GetString();
                             System.Diagnostics.Debug.WriteLine($"📝 [C#] Text: {text}, Language: {language}");
                             SpeakNavigation(text, language);
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"❌ [C#] Thiếu text hoặc language trong message");
                         }
                     }
                     else if (type == "updateUserPosition")
                     {
-                        // Cập nhật vị trí người dùng khi kéo marker hoặc Test Mode
-                        if (msg.TryGetValue("lat", out var latStr) && msg.TryGetValue("lng", out var lngStr))
+                        System.Diagnostics.Debug.WriteLine($"📍 [C#] Nhận updateUserPosition");
+                        if (root.TryGetProperty("lat", out var latElement) && root.TryGetProperty("lng", out var lngElement))
                         {
-                            if (double.TryParse(latStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat) &&
-                                double.TryParse(lngStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng))
+                            double lat = 0, lng = 0;
+                            
+                            // Try as number first, then as string
+                            if (latElement.ValueKind == JsonValueKind.Number)
                             {
-                                _userLat = lat;
-                                _userLng = lng;
-                                System.Diagnostics.Debug.WriteLine($"📍 [C#] User position updated: {lat}, {lng}");
+                                lat = latElement.GetDouble();
                             }
+                            else if (latElement.ValueKind == JsonValueKind.String)
+                            {
+                                string latStr = latElement.GetString();
+                                double.TryParse(latStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out lat);
+                            }
+                            
+                            if (lngElement.ValueKind == JsonValueKind.Number)
+                            {
+                                lng = lngElement.GetDouble();
+                            }
+                            else if (lngElement.ValueKind == JsonValueKind.String)
+                            {
+                                string lngStr = lngElement.GetString();
+                                double.TryParse(lngStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out lng);
+                            }
+                            
+                            _userLat = lat;
+                            _userLng = lng;
+                            System.Diagnostics.Debug.WriteLine($"📍 [C#] User position updated: {lat}, {lng}");
+                            // Gửi lên server để admin map cập nhật theo (throttle 3s)
+                            ReportPositionToServer(lat, lng, forceImmediate: false);
                         }
                     }
                     else if (type == "nearFood")
                     {
-                        // Thuyết minh quán ăn gần đó
-                        if (msg.TryGetValue("name", out var name) && msg.TryGetValue("desc", out var desc))
+                        if (root.TryGetProperty("name", out var nameElement) && root.TryGetProperty("desc", out var descElement))
                         {
-                             // Dùng JS để đọc luôn cho chuẩn phát âm
-                             Dispatcher.Invoke(() => {
+                            string desc = descElement.GetString();
+                            Dispatcher.Invoke(() => {
                                 string script = $"speakWeb('{desc.Replace("'", "\\'")}', currentLanguage, true);";
                                 MapBrowser.CoreWebView2.ExecuteScriptAsync(script);
-                             });
+                            });
                         }
                     }
                     else if (type == "navStateChanged")
                     {
-                        if (msg.TryGetValue("navigating", out var navStr) && bool.TryParse(navStr, out var nav))
+                        System.Diagnostics.Debug.WriteLine($"🧭 [C#] Nhận navStateChanged message!");
+                        
+                        if (root.TryGetProperty("navigating", out var navElement))
                         {
+                            bool nav = navElement.GetBoolean();
                             _isNavigating = nav;
-                            if (msg.TryGetValue("destinationName", out var dest)) _destinationName = dest;
-                            System.Diagnostics.Debug.WriteLine($"🧭 [C#] Navigation state changed: {nav}, Goal: {_destinationName}");
-                            ReportPositionToServer(_userLat, _userLng);
+                            System.Diagnostics.Debug.WriteLine($"🧭 [C#] Parsed navigating: {nav}");
+                            
+                            if (root.TryGetProperty("destinationName", out var destElement))
+                            {
+                                _destinationName = destElement.GetString();
+                                System.Diagnostics.Debug.WriteLine($"🧭 [C#] destinationName: {_destinationName}");
+                            }
+                            
+                            if (root.TryGetProperty("destinationLat", out var latElement))
+                            {
+                                // Try as number first, then as string
+                                if (latElement.ValueKind == JsonValueKind.Number)
+                                {
+                                    _destinationLat = latElement.GetDouble();
+                                }
+                                else if (latElement.ValueKind == JsonValueKind.String)
+                                {
+                                    string latStr = latElement.GetString();
+                                    if (double.TryParse(latStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat))
+                                    {
+                                        _destinationLat = lat;
+                                    }
+                                }
+                                System.Diagnostics.Debug.WriteLine($"🧭 [C#] destinationLat: {_destinationLat}");
+                            }
+                            
+                            if (root.TryGetProperty("destinationLng", out var lngElement))
+                            {
+                                // Try as number first, then as string
+                                if (lngElement.ValueKind == JsonValueKind.Number)
+                                {
+                                    _destinationLng = lngElement.GetDouble();
+                                }
+                                else if (lngElement.ValueKind == JsonValueKind.String)
+                                {
+                                    string lngStr = lngElement.GetString();
+                                    if (double.TryParse(lngStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng))
+                                    {
+                                        _destinationLng = lng;
+                                    }
+                                }
+                                System.Diagnostics.Debug.WriteLine($"🧭 [C#] destinationLng: {_destinationLng}");
+                            }
+                            
+                            System.Diagnostics.Debug.WriteLine($"🧭 [C#] Navigation state changed: {nav}, Goal: {_destinationName} ({_destinationLat:F5}, {_destinationLng:F5})");
+                            System.Diagnostics.Debug.WriteLine($"🚀 [C#] GỬI lên server sau 200ms delay (isNavigating={nav})");
+                            
+                            // Capture snapshot values to avoid closure issues
+                            bool navSnapshot = nav;
+                            double latSnap = _userLat, lngSnap = _userLng;
+                            double destLatSnap = _destinationLat, destLngSnap = _destinationLng;
+                            string destNameSnap = _destinationName;
+                            
+                            // Wait 200ms so that the updateUserPosition message sent just before
+                            // navStateChanged has time to update _userLat/_userLng
+                            System.Threading.Tasks.Task.Delay(200).ContinueWith(_ =>
+                            {
+                                // Re-read latest values after delay
+                                Dispatcher.Invoke(() =>
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"🔍 [C#] DELAYED CHECK: _isNavigating={_isNavigating}, lat={_userLat:F5}, lng={_userLng:F5}");
+                                    ReportPositionToServer(_userLat, _userLng, forceImmediate: true);
+                                });
+                            });
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"❌ [C#] Không tìm thấy key 'navigating' trong message");
                         }
                     }
                     else
@@ -1468,14 +1844,11 @@ html += "function getInstruction(step){";
                         System.Diagnostics.Debug.WriteLine($"❓ [C#] Unknown message type: {type}");
                     }
                 }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"❌ [C#] Không parse được message hoặc không có type");
-                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ [C#] Exception trong OnWebMessage: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [C#] EXCEPTION trong OnWebMessage: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ [C#] Stack trace: {ex.StackTrace}");
             }
         }
 
@@ -1521,7 +1894,7 @@ html += "function getInstruction(step){";
                 System.Diagnostics.Debug.WriteLine($"❌ [C#] Exception khi gọi Speak: {ex.Message}");
                 Dispatcher.Invoke(() =>
                 {
-                    MessageBox.Show($"Lỗi giọng nói: {ex.Message}\n\nStack: {ex.StackTrace}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageDialog.ShowError($"Lỗi giọng nói: {ex.Message}\n\nStack: {ex.StackTrace}", "Lỗi");
                 });
             }
         }
@@ -1629,7 +2002,57 @@ html += "function getInstruction(step){";
             if (_geoWatcher != null) _geoWatcher.Stop();
             _speechService.Stop();
             _speechService.Dispose();
+            
+            // Mở lại FoodDetailWindow với food hiện tại
+            if (_food != null)
+            {
+                FoodDetailWindow detailWindow = new FoodDetailWindow(_food);
+                detailWindow.Show();
+            }
+            
             this.Close();
+        }
+        
+        private void UpdateUILanguage()
+        {
+            var lang = LanguageService.Instance;
+            
+            // Update window title
+            this.Title = $"Vietnam Food Guide - {lang["map_title"]}";
+            
+            // Update status bar
+            if (BtnBack != null)
+            {
+                BtnBack.Content = lang["back"];
+            }
+            if (TxtMapTitle != null)
+            {
+                TxtMapTitle.Text = lang["map_title"];
+            }
+            
+            // Update loading overlay
+            if (TxtLoadingMap != null)
+            {
+                TxtLoadingMap.Text = lang["loading_map"];
+            }
+            
+            // Update narration banner
+            if (TxtNarrating != null)
+            {
+                TxtNarrating.Text = lang["narrating"];
+            }
+            if (BtnStopNarration != null)
+            {
+                BtnStopNarration.Content = lang["stop"];
+            }
+            
+            // Notify JavaScript about language change
+            if (MapBrowser?.CoreWebView2 != null)
+            {
+                var msg = JsonSerializer.Serialize(new { type = "languageChanged", language = lang.CurrentLanguage });
+                MapBrowser.CoreWebView2.PostWebMessageAsString(msg);
+                System.Diagnostics.Debug.WriteLine($"🌐 [C#] Sent language change to JavaScript: {lang.CurrentLanguage}");
+            }
         }
 
         private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)

@@ -55,6 +55,18 @@ namespace VietnamFoodGuide.Services
 
                     if (result?.Success == true && result.User != null)
                     {
+                        // Lưu token vào UserInfo
+                        result.User.Token = result.Token;
+                        
+                        // Parse ExpiresAt
+                        if (!string.IsNullOrEmpty(result.ExpiresAt))
+                        {
+                            if (DateTime.TryParse(result.ExpiresAt, out DateTime expiresAt))
+                            {
+                                result.User.ExpiresAt = expiresAt;
+                            }
+                        }
+                        
                         return (true, result.User, null);
                     }
                 }
@@ -156,6 +168,8 @@ namespace VietnamFoodGuide.Services
         {
             public bool Success { get; set; }
             public UserInfo User { get; set; }
+            public string Token { get; set; }  // Session token
+            public string ExpiresAt { get; set; }  // Thời gian hết hạn
             public string Message { get; set; }
         }
 
@@ -180,6 +194,8 @@ namespace VietnamFoodGuide.Services
         public int Id { get; set; }
         public string Username { get; set; }
         public string Role { get; set; }
+        public string Token { get; set; }  // Session token
+        public DateTime? ExpiresAt { get; set; }  // Thời gian hết hạn
 
         public bool IsAdmin => Role?.Equals("Admin", StringComparison.OrdinalIgnoreCase) == true;
     }

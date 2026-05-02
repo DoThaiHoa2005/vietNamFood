@@ -1,4 +1,4 @@
-// Thay thế method BuildMapHtml trong MapWindow.xaml.cs bằng code đơn giản này:
+oa// Thay thế method BuildMapHtml trong MapWindow.xaml.cs bằng code đơn giản này:
 
 private string BuildMapHtml(string markersJson, double focusLat, double focusLng, double userLat, double userLng)
 {

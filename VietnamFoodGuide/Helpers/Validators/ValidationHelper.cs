@@ -71,7 +71,7 @@ namespace VietnamFoodGuide.Helpers.Validators
             if (string.IsNullOrWhiteSpace(category))
                 return false;
 
-            var validCategories = new[] { "Phở", "Bún", "Cơm", "Bánh Mì", "Bánh Khác", "Thức uống" };
+            var validCategories = new[] { "Hải sản", "Ốc", "Bún", "Nướng", "Lẩu & Nướng" };
             return validCategories.Contains(category);
         }
     }

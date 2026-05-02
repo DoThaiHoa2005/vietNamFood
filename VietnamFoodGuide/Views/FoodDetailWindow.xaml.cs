@@ -10,9 +10,9 @@ namespace VietnamFoodGuide.Views
     public partial class FoodDetailWindow : Window
     {
         private readonly FoodItem _food;
-        private readonly SpeechService _speechService = new SpeechService();
         private readonly StorageService _storageService = new StorageService();
         private readonly FavoritesApiService _favoritesApiService = new FavoritesApiService();
+        private readonly LanguageService _lang = LanguageService.Instance;
 
         public FoodDetailWindow(FoodItem selectedFood)
         {
@@ -23,7 +23,9 @@ namespace VietnamFoodGuide.Views
             FoodName.Text = _food.Name;
             FoodCity.Text = _food.City;
             FoodRating.Text = $"⭐ {_food.Rating}";
-            FoodDescription.Text = _food.DescriptionVI;
+            
+            // Set description based on current language
+            UpdateDescription();
 
             if (!string.IsNullOrEmpty(_food.Image))
             {
@@ -31,40 +33,156 @@ namespace VietnamFoodGuide.Views
                 catch { }
             }
 
-            // Load favorite status từ API
+            // Load favorite status
             LoadFavoriteStatus();
             
             FavoritesBtn.Click += async (s, e) => await ToggleFavoriteAsync();
-            _speechService.OnError += (error) => MessageBox.Show(error);
+            
+            // ✅ Dùng GoogleTranslateSpeechService (giọng nói chuẩn từ Google Translate)
+            // LUÔN LUÔN sẵn sàng ngay lập tức, không cần đợi
+            GoogleTranslateSpeechService.Instance.OnSpeechStarted += OnSpeechStarted;
+            GoogleTranslateSpeechService.Instance.OnSpeechCompleted += OnSpeechCompleted;
+            GoogleTranslateSpeechService.Instance.OnSpeechError += OnSpeechError;
+            
+            BtnSpeak.IsEnabled = true; // Luôn sẵn sàng
+            System.Diagnostics.Debug.WriteLine("✅ [FoodDetail] GoogleTranslateSpeechService sẵn sàng ngay lập tức");
+            
+            // Update UI with translations
+            UpdateUILanguage();
+            
+            // Subscribe to language changes
+            _lang.LanguageChanged += (s, e) => UpdateUILanguage();
+        }
+        
+        private void UpdateDescription()
+        {
+            var currentLang = _lang.CurrentLanguage;
+            if (currentLang == "en")
+                FoodDescription.Text = _food.DescriptionEN ?? "No description.";
+            else if (currentLang == "zh")
+                FoodDescription.Text = _food.DescriptionCN ?? "抱歉，没有描述。";
+            else
+                FoodDescription.Text = _food.DescriptionVI ?? "Chưa có mô tả.";
+        }
+        
+        private void UpdateUILanguage()
+        {
+            // Update description
+            UpdateDescription();
+            
+            // Update window title
+            this.Title = _lang["food_detail"];
+            
+            // Update status bar
+            if (BtnBack != null)
+            {
+                BtnBack.Content = _lang["back"];
+            }
+            if (TxtTitle != null)
+            {
+                TxtTitle.Text = _lang["food_detail"];
+            }
+            
+            // Update description label
+            if (TxtDescriptionLabel != null)
+            {
+                TxtDescriptionLabel.Text = _lang["description"];
+            }
+            
+            // Update buttons
+            if (BtnMap != null)
+            {
+                BtnMap.Content = _lang["view_map"];
+            }
+            if (BtnSpeak != null)
+            {
+                BtnSpeak.Content = _lang["listen"];
+            }
+            if (BtnStop != null)
+            {
+                BtnStop.Content = _lang["stop"];
+            }
+            
+            // Update favorite button
+            UpdateFavoriteButton();
+            
+            // Update status bar text (if playing)
+            if (SpeechStatusBar != null && SpeechStatusBar.Visibility == Visibility.Visible)
+            {
+                var statusText = SpeechStatusBar.FindName("StatusText") as TextBlock;
+                if (statusText != null)
+                {
+                    statusText.Text = _lang["playing_narration"];
+                }
+            }
+        }
+        
+        private void OnSpeechStarted()
+        {
+            Dispatcher.Invoke(() => {
+                BtnStop.Visibility = Visibility.Visible;
+                if (StopPlaceholder != null) StopPlaceholder.Visibility = Visibility.Collapsed;
+                if (SpeechStatusBar != null)
+                {
+                    SpeechStatusBar.Visibility = Visibility.Visible;
+                    var statusText = SpeechStatusBar.FindName("StatusText") as TextBlock;
+                    if (statusText != null)
+                    {
+                        statusText.Text = _lang["playing_narration"];
+                    }
+                }
+                BtnSpeak.IsEnabled = false;
+            });
+        }
+        
+        private void OnSpeechCompleted()
+        {
+            Dispatcher.Invoke(() => {
+                BtnStop.Visibility = Visibility.Collapsed;
+                if (StopPlaceholder != null) StopPlaceholder.Visibility = Visibility.Visible;
+                if (SpeechStatusBar != null) SpeechStatusBar.Visibility = Visibility.Collapsed;
+                BtnSpeak.IsEnabled = true;
+            });
+        }
+        
+        private void OnSpeechError(string error)
+        {
+            Dispatcher.Invoke(() => {
+                BtnStop.Visibility = Visibility.Collapsed;
+                if (StopPlaceholder != null) StopPlaceholder.Visibility = Visibility.Visible;
+                if (SpeechStatusBar != null) SpeechStatusBar.Visibility = Visibility.Collapsed;
+                BtnSpeak.IsEnabled = true;
+                MessageDialog.ShowWarning($"Lỗi: {error}", "Lỗi");
+            });
+        }
+        
+        protected override void OnClosed(EventArgs e)
+        {
+            // Hủy đăng ký events
+            GoogleTranslateSpeechService.Instance.OnSpeechStarted -= OnSpeechStarted;
+            GoogleTranslateSpeechService.Instance.OnSpeechCompleted -= OnSpeechCompleted;
+            GoogleTranslateSpeechService.Instance.OnSpeechError -= OnSpeechError;
+            
+            base.OnClosed(e);
         }
 
         private async void LoadFavoriteStatus()
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[LoadFavoriteStatus] App.CurrentApiUser: {App.CurrentApiUser?.Username ?? "NULL"}");
-                System.Diagnostics.Debug.WriteLine($"[LoadFavoriteStatus] Food ID: {_food.Id}, Food Name: {_food.Name}");
-
                 if (App.CurrentApiUser != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[LoadFavoriteStatus] Calling API with UserId: {App.CurrentApiUser.Id}, FoodId: {_food.Id}");
                     _food.IsFavorite = await _favoritesApiService.IsFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
-                    System.Diagnostics.Debug.WriteLine($"[LoadFavoriteStatus] API result: {_food.IsFavorite}");
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("[LoadFavoriteStatus] Using local storage fallback (No user logged in)");
                     _food.IsFavorite = _storageService.IsFavorite(_food.Name);
                 }
                 UpdateFavoriteButton();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[LoadFavoriteStatus] CRITICAL ERROR: {ex.Message}");
-                // Nếu lỗi kết nối server, báo cho người dùng
-                MessageBox.Show($"Không thể kết nối với máy chủ để kiểm tra trạng thái yêu thích.\nChi tiết: {ex.Message}", 
-                                "Lỗi kết nối", MessageBoxButton.OK, MessageBoxImage.Warning);
-                
+                System.Diagnostics.Debug.WriteLine($"[LoadFavoriteStatus] Error: {ex.Message}");
                 _food.IsFavorite = _storageService.IsFavorite(_food.Name);
                 UpdateFavoriteButton();
             }
@@ -75,14 +193,14 @@ namespace VietnamFoodGuide.Views
             Dispatcher.Invoke(() => {
                 if (_food.IsFavorite)
                 {
-                    FavoritesBtn.Content = "⭐ Đã yêu thích";
-                    FavoritesBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFD700")); // MÀU VÀNG CHIẾM ƯU THẾ
+                    FavoritesBtn.Content = _lang["remove_favorite"];
+                    FavoritesBtn.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFD700"));
                     FavoritesBtn.Foreground = System.Windows.Media.Brushes.Black;
                 }
                 else
                 {
-                    FavoritesBtn.Content = "☆ Thêm yêu thích";
-                    FavoritesBtn.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 200, 200)); // MÀU XÁM KHI CHƯA THÍCH
+                    FavoritesBtn.Content = _lang["add_favorite"];
+                    FavoritesBtn.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 200, 200));
                     FavoritesBtn.Foreground = System.Windows.Media.Brushes.White;
                 }
             });
@@ -92,64 +210,40 @@ namespace VietnamFoodGuide.Views
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[ToggleFavorite] Starting - Current state: {_food.IsFavorite}");
-                System.Diagnostics.Debug.WriteLine($"[ToggleFavorite] User: {App.CurrentApiUser?.Username ?? "NULL"}, Food: {_food.Name}");
-
                 FavoritesBtn.IsEnabled = false;
-                FavoritesBtn.Content = "Đang xử lý...";
+                FavoritesBtn.Content = _lang["processing"];
 
                 if (App.CurrentApiUser != null)
                 {
                     if (_food.Id <= 0)
                     {
-                        MessageBox.Show("Món ăn này không có ID hợp lệ trong Database (có thể bạn đang chạy App ở chế độ Offline).\nVui lòng kiểm tra lại link ngrok và XAMPP!", 
-                                        "Lỗi dữ liệu", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageDialog.ShowError("Món ăn không có ID hợp lệ!", _lang["error"]);
                         return;
                     }
-
-                    System.Diagnostics.Debug.WriteLine($"[ToggleFavorite] Using API - UserId: {App.CurrentApiUser.Id}, FoodId: {_food.Id}");
                     
                     if (_food.IsFavorite)
                     {
                         var result = await _favoritesApiService.RemoveFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
-                        if (result.success)
-                        {
-                            _food.IsFavorite = false;
-                            System.Diagnostics.Debug.WriteLine("[ToggleFavorite] Removed successfully");
-                        }
-                        else
-                        {
-                            MessageBox.Show($"Lỗi xóa yêu thích: {result.message}", "Lỗi Server", MessageBoxButton.OK, MessageBoxImage.Error);
-                        }
+                        if (result.success) _food.IsFavorite = false;
+                        else MessageDialog.ShowError($"{_lang["error"]}: {result.message}", _lang["error"]);
                     }
                     else
                     {
                         var result = await _favoritesApiService.AddFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
-                        if (result.success)
-                        {
-                            _food.IsFavorite = true;
-                            System.Diagnostics.Debug.WriteLine("[ToggleFavorite] Added successfully");
-                        }
-                        else
-                        {
-                            MessageBox.Show($"Lỗi thêm yêu thích: {result.message}", "Lỗi Server", MessageBoxButton.OK, MessageBoxImage.Error);
-                        }
+                        if (result.success) _food.IsFavorite = true;
+                        else MessageDialog.ShowError($"{_lang["error"]}: {result.message}", _lang["error"]);
                     }
                 }
                 else
                 {
-                    MessageBox.Show("Bạn cần đăng nhập để lưu yêu thích vào Database!", "Chưa đăng nhập", MessageBoxButton.OK, MessageBoxImage.Information);
-                    // Fallback local storage
+                    MessageDialog.ShowInformation(_lang["need_login"], _lang["notification"]);
                     if (_food.IsFavorite) { _storageService.RemoveFavorite(_food.Name); _food.IsFavorite = false; }
                     else { _storageService.AddFavorite(_food); _food.IsFavorite = true; }
                 }
-                
-                System.Diagnostics.Debug.WriteLine($"[ToggleFavorite] Final state: {_food.IsFavorite}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ToggleFavorite] Exception: {ex.Message}");
-                MessageBox.Show($"Lỗi: {ex.Message}", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageDialog.ShowError($"{_lang["error"]}: {ex.Message}", _lang["error"]);
             }
             finally
             {
@@ -164,56 +258,52 @@ namespace VietnamFoodGuide.Views
             {
                 MapWindow mapWin = new MapWindow(_food);
                 mapWin.Show();
-                _speechService.Stop();
+                GoogleTranslateSpeechService.Instance.Stop();
                 this.Close();
             }
             else
             {
-                MessageBox.Show("Không tìm thấy thông tin vị trí!");
+                MessageDialog.ShowInformation("Không tìm thấy thông tin vị trí!");
             }
         }
 
         private void Back_Click(object sender, RoutedEventArgs e)
         {
-            _speechService.Stop();
+            GoogleTranslateSpeechService.Instance.Stop();
+            MainWindow mainWindow = new MainWindow();
+            mainWindow.Show();
             this.Close();
         }
 
         private void SpeakVI(object sender, RoutedEventArgs e)
         {
             string textToSpeak = GetDescription();
-            string cultureCode = GetCultureCode();
+            string langCode = GetLanguageCode();
 
             FoodDescription.Text = textToSpeak;
-            _speechService.OnPlaybackStarted += () => Dispatcher.Invoke(() => {
-                BtnStop.Visibility = System.Windows.Visibility.Visible;
-                BtnSpeak.IsEnabled = false;
-            });
-            _speechService.OnPlaybackCompleted += () => Dispatcher.Invoke(() => {
-                BtnStop.Visibility = System.Windows.Visibility.Collapsed;
-                BtnSpeak.IsEnabled = true;
-            });
-            _speechService.Speak(textToSpeak, cultureCode);
+            
+            // Gọi GoogleTranslateSpeechService (giọng nói chuẩn từ Google Translate)
+            GoogleTranslateSpeechService.Instance.Speak(textToSpeak, langCode);
         }
 
         private void StopSpeak(object sender, RoutedEventArgs e)
         {
-            _speechService.Stop();
-            BtnStop.Visibility = System.Windows.Visibility.Collapsed;
-            BtnSpeak.IsEnabled = true;
+            GoogleTranslateSpeechService.Instance.Stop();
         }
 
         private string GetDescription()
         {
-            if (LangEN.IsChecked == true) return _food.DescriptionEN ?? "No description.";
-            if (LangCN.IsChecked == true) return _food.DescriptionCN ?? "抱歉，没有描述。";
+            var currentLang = _lang.CurrentLanguage;
+            if (currentLang == "en") return _food.DescriptionEN ?? "No description.";
+            if (currentLang == "zh") return _food.DescriptionCN ?? "抱歉，没有描述。";
             return _food.DescriptionVI ?? "Chưa có mô tả.";
         }
 
-        private string GetCultureCode()
+        private string GetLanguageCode()
         {
-            if (LangEN.IsChecked == true) return "en-US";
-            if (LangCN.IsChecked == true) return "zh-CN";
+            var currentLang = _lang.CurrentLanguage;
+            if (currentLang == "en") return "en-US";
+            if (currentLang == "zh") return "zh-CN";
             return "vi-VN";
         }
     }

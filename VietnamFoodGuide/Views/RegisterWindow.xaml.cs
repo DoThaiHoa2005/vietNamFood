@@ -11,6 +11,7 @@ namespace VietnamFoodGuide.Views
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly ApiAuthService _apiAuthService;
+        private readonly SQLiteUserService _sqliteUserService; // ✅ Offline registration
         private bool _isPasswordVisible = false;
         private bool _isConfirmPasswordVisible = false;
 
@@ -20,6 +21,7 @@ namespace VietnamFoodGuide.Views
         {
             _dbContext = dbContext;
             _apiAuthService = new ApiAuthService();
+            _sqliteUserService = new SQLiteUserService(); // ✅ SQLite (offline)
             InitializeComponent();
             
             // Thêm event handler cho phím Enter
@@ -109,17 +111,38 @@ namespace VietnamFoodGuide.Views
             // Disable button và hiển thị loading
             RegisterButton.IsEnabled = false;
             RegisterButton.Content = "Đang đăng ký...";
-            MessageTextBlock.Visibility = Visibility.Collapsed;
+            if (MessageBorder != null) MessageBorder.Visibility = Visibility.Collapsed;
 
             try
             {
-                // Gọi API để đăng ký
-                var (success, message) = await _apiAuthService.RegisterAsync(username, email, password);
+                // ✅ OFFLINE-FIRST: Đăng ký vào SQLite trước
+                System.Diagnostics.Debug.WriteLine("[Register] Trying offline registration with SQLite...");
+                bool offlineSuccess = _sqliteUserService.Register(username, password);
 
-                if (success)
+                if (offlineSuccess)
                 {
-                    ShowSuccess("Đăng ký thành công!");
+                    // ✅ Đăng ký offline thành công
+                    System.Diagnostics.Debug.WriteLine($"[Register] Offline registration successful for user: {username}");
+                    ShowSuccess("Đăng ký thành công! (Offline)");
                     RegisteredUsername = username;
+                    
+                    // Thử đồng bộ lên server (không bắt buộc)
+                    try
+                    {
+                        var (apiSuccess, apiMessage) = await _apiAuthService.RegisterAsync(username, email, password);
+                        if (apiSuccess)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[Register] Synced to online server successfully");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[Register] Failed to sync to server: {apiMessage}");
+                        }
+                    }
+                    catch (Exception syncEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[Register] Server sync error (ignored): {syncEx.Message}");
+                    }
                     
                     // Đợi 1.5 giây để user thấy thông báo
                     await System.Threading.Tasks.Task.Delay(1500);
@@ -130,7 +153,8 @@ namespace VietnamFoodGuide.Views
                 }
                 else
                 {
-                    ShowError(message ?? "Đăng ký thất bại");
+                    // ❌ Offline registration failed (username đã tồn tại)
+                    ShowError("Tài khoản đã tồn tại");
                 }
             }
             catch (Exception ex)
@@ -199,14 +223,14 @@ namespace VietnamFoodGuide.Views
         {
             MessageTextBlock.Text = "❌ " + message;
             MessageTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 53, 69));
-            MessageTextBlock.Visibility = Visibility.Visible;
+            if (MessageBorder != null) { MessageBorder.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 255, 240, 240)); MessageBorder.Visibility = Visibility.Visible; }
         }
 
         private void ShowSuccess(string message)
         {
             MessageTextBlock.Text = "✅ " + message;
             MessageTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 167, 69));
-            MessageTextBlock.Visibility = Visibility.Visible;
+            if (MessageBorder != null) { MessageBorder.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 240, 255, 244)); MessageBorder.Visibility = Visibility.Visible; }
         }
 
         private bool IsValidEmail(string email)

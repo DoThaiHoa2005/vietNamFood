@@ -12,36 +12,258 @@ namespace VietnamFoodGuide.Views
     public partial class MainWindow : Window
     {
         private readonly ApiFoodService apiService = new ApiFoodService();
-        private readonly FoodService fallbackService = new FoodService();
         private readonly FavoritesApiService favoritesService = new FavoritesApiService();
+        private readonly LanguageService lang = LanguageService.Instance;
         private List<FoodItem> allFoods;
         private string currentCategory = "Tất cả";
 
         public MainWindow()
         {
             InitializeComponent();
+            InitializeLanguage();
             LoadData();
+            
+            // Subscribe to language changes
+            lang.LanguageChanged += (s, e) => UpdateUILanguage();
+            
+            // Check QR scan status and show notification if needed
+            CheckQRScanStatus();
+        }
+
+        private void InitializeLanguage()
+        {
+            // Set ComboBox to current language
+            var currentLang = lang.CurrentLanguage;
+            foreach (ComboBoxItem item in CmbLanguage.Items)
+            {
+                if (item.Tag.ToString() == currentLang)
+                {
+                    CmbLanguage.SelectedItem = item;
+                    break;
+                }
+            }
+            
+            // If no match, default to Vietnamese
+            if (CmbLanguage.SelectedItem == null)
+            {
+                CmbLanguage.SelectedIndex = 0;
+            }
+            
+            UpdateUILanguage();
+        }
+
+        private void UpdateUILanguage()
+        {
+            // Update user status
+            if (TxtUserStatus != null)
+            {
+                if (App.CurrentApiUser != null)
+                {
+                    TxtUserStatus.Text = $"👤 {App.CurrentApiUser.Username}";
+                }
+                else
+                {
+                    TxtUserStatus.Text = $"👤 {lang["guest"]}";
+                }
+            }
+            
+            // Update header subtitle
+            if (TxtAppSubtitle != null)
+            {
+                TxtAppSubtitle.Text = lang["app_subtitle"];
+            }
+            
+            // Update search placeholder
+            if (TxtSearchPlaceholder != null)
+            {
+                TxtSearchPlaceholder.Text = lang["search_placeholder"];
+            }
+            
+            // Update categories label
+            if (TxtCategoriesLabel != null)
+            {
+                TxtCategoriesLabel.Text = lang["categories"];
+            }
+            
+            // Update category buttons
+            if (RbAllCategories != null)
+            {
+                RbAllCategories.Content = lang["all_categories"];
+            }
+            if (RbHaiSan != null)
+            {
+                RbHaiSan.Content = lang["cat_haisan"];
+            }
+            if (RbOc != null)
+            {
+                RbOc.Content = lang["cat_oc"];
+            }
+            if (RbBun != null)
+            {
+                RbBun.Content = lang["cat_bun"];
+            }
+            if (RbNuong != null)
+            {
+                RbNuong.Content = lang["cat_nuong"];
+            }
+            if (RbLauNuong != null)
+            {
+                RbLauNuong.Content = lang["cat_lau_nuong"];
+            }
+            
+            // Update empty state
+            if (TxtNoResults != null)
+            {
+                TxtNoResults.Text = lang["no_results"];
+            }
+            if (TxtTryDifferentSearch != null)
+            {
+                TxtTryDifferentSearch.Text = lang["try_different_search"];
+            }
+            
+            // Update bottom navigation
+            if (TxtNavHome != null)
+            {
+                TxtNavHome.Text = lang["home"];
+            }
+            if (TxtNavQRScanner != null)
+            {
+                TxtNavQRScanner.Text = lang.CurrentLanguage == "vi" ? "Quét QR" :
+                                       lang.CurrentLanguage == "en" ? "QR Scan" : "扫码";
+            }
+            if (TxtNavFavorites != null)
+            {
+                TxtNavFavorites.Text = lang["favorites"];
+            }
+            if (TxtNavAccount != null)
+            {
+                TxtNavAccount.Text = lang["account"];
+            }
+            
+            // Update QR notification banner
+            if (TxtQRTitle != null)
+            {
+                TxtQRTitle.Text = lang.CurrentLanguage == "vi" ? 
+                    "📱 Quét mã QR để trải nghiệm đầy đủ" :
+                    lang.CurrentLanguage == "en" ?
+                    "📱 Scan QR for Full Experience" :
+                    "📱 扫描二维码获得完整体验";
+            }
+            if (TxtQRMessage != null)
+            {
+                TxtQRMessage.Text = lang.CurrentLanguage == "vi" ?
+                    "Mở khóa tất cả tính năng!" :
+                    lang.CurrentLanguage == "en" ?
+                    "Unlock all features!" :
+                    "解锁所有功能！";
+            }
+            if (BtnScanQR != null)
+            {
+                BtnScanQR.Content = lang.CurrentLanguage == "vi" ?
+                    "Quét" :
+                    lang.CurrentLanguage == "en" ?
+                    "Scan" :
+                    "扫描";
+            }
+            
+            // Update "View Details" button text for all food items
+            if (allFoods != null)
+            {
+                foreach (var food in allFoods)
+                {
+                    food.ViewDetailsText = lang["view_details"];
+                }
+            }
+            
+            // Refresh food list to update any displayed text
+            if (allFoods != null)
+            {
+                ApplyFilters();
+            }
+        }
+
+        private void CheckQRScanStatus()
+        {
+            try
+            {
+                var storageService = new StorageService();
+                bool hasScanned = storageService.HasScannedQR();
+                
+                if (!hasScanned)
+                {
+                    // Show QR notification banner
+                    QRNotificationBanner.Visibility = Visibility.Visible;
+                    QRBannerSpacer.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    // Hide QR notification banner
+                    QRNotificationBanner.Visibility = Visibility.Collapsed;
+                    QRBannerSpacer.Visibility = Visibility.Collapsed;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error checking QR status: {ex.Message}");
+                // If error, don't show banner
+                QRNotificationBanner.Visibility = Visibility.Collapsed;
+                QRBannerSpacer.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void ScanQR_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Open QR Scanner Window and close MainWindow
+                var qrWindow = new QRScannerWindow();
+                qrWindow.Show();
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageDialog.ShowError($"Lỗi mở QR Scanner: {ex.Message}", "Lỗi");
+            }
+        }
+
+        private void DismissQR_Click(object sender, RoutedEventArgs e)
+        {
+            // Hide the banner (user can scan later from Account section)
+            QRNotificationBanner.Visibility = Visibility.Collapsed;
+            QRBannerSpacer.Visibility = Visibility.Collapsed;
+        }
+
+        private void LanguageChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (CmbLanguage.SelectedItem is ComboBoxItem selected)
+            {
+                var newLang = selected.Tag.ToString();
+                lang.CurrentLanguage = newLang;
+            }
         }
 
         private async void LoadData()
         {
             try
             {
-                // Thử load từ API trước (MySQL qua XAMPP)
+                // Load từ API (tự động fallback về SQLite nếu API lỗi)
                 allFoods = await apiService.LoadFoodsAsync();
-                
-                if (allFoods == null || allFoods.Count == 0)
-                {
-                    // Fallback về JSON local
-                    allFoods = fallbackService.LoadFoods();
-                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Lỗi load từ API: {ex.Message}");
-                MessageBox.Show("Không thể kết nối tới Server. App sẽ chạy ở chế độ Offline (Dữ liệu cục bộ).\nLưu ý: Tính năng Yêu thích sẽ không hoạt động.", 
-                                "Mất kết nối", MessageBoxButton.OK, MessageBoxImage.Warning);
-                allFoods = fallbackService.LoadFoods();
+                System.Diagnostics.Debug.WriteLine($"Lỗi load dữ liệu: {ex.Message}");
+                MessageDialog.ShowWarning($"{lang["connection_error"]}. {lang["offline_mode"]}", 
+                                lang["connection_lost"]);
+                allFoods = new List<FoodItem>(); // Empty list nếu lỗi hoàn toàn
+            }
+
+            // Set ViewDetailsText for all items
+            if (allFoods != null)
+            {
+                foreach (var food in allFoods)
+                {
+                    food.ViewDetailsText = lang["view_details"];
+                }
             }
 
             FoodList.ItemsSource = allFoods;
@@ -85,7 +307,8 @@ namespace VietnamFoodGuide.Views
         {
             if (sender is RadioButton btn)
             {
-                currentCategory = btn.Content.ToString();
+                // Use Tag instead of Content for filtering (Tag contains Vietnamese category name)
+                currentCategory = btn.Tag?.ToString() ?? "Tất cả";
                 ApplyFilters();
             }
         }
@@ -135,6 +358,7 @@ namespace VietnamFoodGuide.Views
             {
                 FoodDetailWindow detailWindow = new FoodDetailWindow(selectedFood);
                 detailWindow.Show();
+                this.Close(); // Đóng MainWindow khi mở FoodDetailWindow
             }
         }
 
@@ -144,7 +368,7 @@ namespace VietnamFoodGuide.Views
             {
                 if (App.CurrentApiUser == null)
                 {
-                    MessageBox.Show("Vui lòng đăng nhập để sử dụng tính năng yêu thích!", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageDialog.ShowInformation("Vui lòng đăng nhập để sử dụng tính năng yêu thích!", "Thông báo");
                     return;
                 }
 
@@ -192,6 +416,101 @@ namespace VietnamFoodGuide.Views
                 scrollViewer.ScrollToHorizontalOffset(scrollViewer.HorizontalOffset - 40);
 
             e.Handled = true;
+        }
+
+        private void FocusSearch(object sender, RoutedEventArgs e)
+        {
+            SearchBox?.Focus();
+            SearchBox?.SelectAll();
+        }
+
+        private void OpenQRScanner(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Open QR Scanner Window and close MainWindow
+                var qrWindow = new QRScannerWindow();
+                qrWindow.Show();
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageDialog.ShowError($"Lỗi mở QR Scanner: {ex.Message}", "Lỗi");
+            }
+        }
+
+        private void OpenFavorites(object sender, RoutedEventArgs e)
+        {
+            if (App.CurrentApiUser == null)
+            {
+                MessageDialog.ShowInformation("Vui lòng đăng nhập để xem danh sách yêu thích!", "Thông báo");
+                return;
+            }
+            var favWin = new FavoritesWindow();
+            favWin.Show();
+            this.Close();
+        }
+
+        private void OpenProfile(object sender, RoutedEventArgs e)
+        {
+            if (App.CurrentApiUser != null)
+            {
+                var dialog = new AccountDialog(App.CurrentApiUser.Username);
+                if (dialog.ShowDialog() == true && dialog.ShouldLogout)
+                {
+                    // Đặt user offline trước khi logout
+                    var userToLogout = App.CurrentApiUser;
+                    if (userToLogout != null)
+                    {
+                        _ = System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            try
+                            {
+                                using (var client = new System.Net.Http.HttpClient())
+                                {
+                                    client.Timeout = TimeSpan.FromSeconds(5);
+                                    var payload = System.Text.Json.JsonSerializer.Serialize(new { userId = userToLogout.Id });
+                                    var content = new System.Net.Http.StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+                                    await client.PostAsync($"{VietnamFoodGuide.Services.AppConfig.ApiBaseUrl}?action=setUserOffline", content);
+                                    System.Diagnostics.Debug.WriteLine($"✅ [Logout] Đã set offline cho user {userToLogout.Username}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"❌ [Logout] Lỗi set offline: {ex.Message}");
+                            }
+                        });
+                    }
+
+                    // Clear current user
+                    App.CurrentApiUser = null;
+                    
+                    // Show login window immediately
+                    var login = new LoginWindow(App.DbContext);
+                    if (login.ShowDialog() == true)
+                    {
+                        // User logged in successfully
+                        if (TxtUserStatus != null && App.CurrentApiUser != null)
+                            TxtUserStatus.Text = $"👤 {App.CurrentApiUser.Username}";
+                    }
+                    else
+                    {
+                        // User cancelled login - update status to guest
+                        var lang = LanguageService.Instance;
+                        if (TxtUserStatus != null)
+                            TxtUserStatus.Text = $"👤 {lang["guest"]}";
+                    }
+                }
+            }
+            else
+            {
+                var login = new LoginWindow(App.DbContext);
+                if (login.ShowDialog() == true)
+                {
+                    if (TxtUserStatus != null && App.CurrentApiUser != null)
+                        TxtUserStatus.Text = $"👤 {App.CurrentApiUser.Username}";
+                }
+            }
         }
     }
 }

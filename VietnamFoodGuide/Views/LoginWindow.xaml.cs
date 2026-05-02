@@ -16,13 +16,16 @@ namespace VietnamFoodGuide.Views
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly ApiAuthService _apiAuthService;
+        private readonly SQLiteUserService _sqliteUserService; // ✅ Offline login
         private bool _isPasswordVisible = false;
         private readonly string _credentialsFile;
+        private static DispatcherTimer _activityTimer;
 
         public LoginWindow(ApplicationDbContext dbContext)
         {
             _dbContext = dbContext;
-            _apiAuthService = new ApiAuthService(); // Sử dụng API XAMPP
+            _apiAuthService = new ApiAuthService(); // API XAMPP (online)
+            _sqliteUserService = new SQLiteUserService(); // ✅ SQLite (offline)
             
             // File lưu thông tin đăng nhập
             string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VietnamFoodGuide");
@@ -89,17 +92,19 @@ namespace VietnamFoodGuide.Views
             // Disable button và hiển thị loading
             LoginButton.IsEnabled = false;
             LoginButton.Content = "Đang đăng nhập...";
-            ErrorMessage.Visibility = Visibility.Collapsed;
+            if (ErrorBorder != null) ErrorBorder.Visibility = Visibility.Collapsed;
 
             try
             {
-                // Gọi API XAMPP để đăng nhập
-                var (success, apiUser, errorMessage) = await _apiAuthService.LoginAsync(username, password);
+                // ✅ OFFLINE-FIRST: Thử đăng nhập bằng SQLite trước
+                Debug.WriteLine("[Login] Trying offline login with SQLite...");
+                var offlineUser = _sqliteUserService.Login(username, password);
 
-                if (success && apiUser != null)
+                if (offlineUser != null)
                 {
-                    // Đăng nhập thành công
-                    ShowSuccess($"Chào mừng {apiUser.Username}!");
+                    // ✅ Đăng nhập offline thành công
+                    Debug.WriteLine($"[Login] Offline login successful for user: {offlineUser.Username}");
+                    ShowSuccess($"Chào mừng {offlineUser.Username}! (Offline)");
                     
                     // Lưu thông tin nếu chọn "Ghi nhớ"
                     if (RememberMeCheckBox.IsChecked == true)
@@ -111,15 +116,17 @@ namespace VietnamFoodGuide.Views
                         ClearSavedCredentials();
                     }
                     
-                    // Lưu thông tin user
-                    App.CurrentApiUser = apiUser;
+                    // Lưu thông tin user (offline mode)
+                    App.CurrentApiUser = offlineUser;
+                    App.SessionToken = null; // Không có token khi offline
+                    App.SessionExpiresAt = null;
                     App.DbContext = _dbContext;
 
                     // Đợi 1 giây để user thấy thông báo
                     await System.Threading.Tasks.Task.Delay(1000);
 
                     // Kiểm tra role
-                    if (apiUser.IsAdmin)
+                    if (offlineUser.IsAdmin)
                     {
                         // Admin → Mở web admin dashboard
                         OpenAdminDashboard();
@@ -131,11 +138,77 @@ namespace VietnamFoodGuide.Views
                         mainWindow.Show();
                         this.Close();
                     }
+                    return;
                 }
-                else
+
+                // ❌ Offline login failed, thử online login
+                Debug.WriteLine("[Login] Offline login failed, trying online login...");
+                
+                try
                 {
-                    // Đăng nhập thất bại
-                    ShowError(errorMessage ?? "Tài khoản hoặc mật khẩu sai");
+                    var (success, apiUser, errorMessage) = await _apiAuthService.LoginAsync(username, password);
+
+                    if (success && apiUser != null)
+                    {
+                        // ✅ Đăng nhập online thành công
+                        Debug.WriteLine($"[Login] Online login successful for user: {apiUser.Username}");
+                        ShowSuccess($"Chào mừng {apiUser.Username}! (Online)");
+                        
+                        // Lưu thông tin nếu chọn "Ghi nhớ"
+                        if (RememberMeCheckBox.IsChecked == true)
+                        {
+                            SaveCredentials(username, password);
+                        }
+                        else
+                        {
+                            ClearSavedCredentials();
+                        }
+                        
+                        // Lưu thông tin user và session token
+                        App.CurrentApiUser = apiUser;
+                        App.SessionToken = apiUser.Token;
+                        App.SessionExpiresAt = apiUser.ExpiresAt;
+                        App.DbContext = _dbContext;
+                        
+                        // Bắt đầu cập nhật activity mỗi 30 giây
+                        StartActivityTimer();
+
+                        // Đợi 1 giây để user thấy thông báo
+                        await System.Threading.Tasks.Task.Delay(1000);
+
+                        // Kiểm tra role
+                        if (apiUser.IsAdmin)
+                        {
+                            // Admin → Mở web admin dashboard
+                            OpenAdminDashboard();
+                        }
+                        else
+                        {
+                            // User → Mở MainWindow
+                            MainWindow mainWindow = new MainWindow();
+                            mainWindow.Show();
+                            this.Close();
+                        }
+                    }
+                    else
+                    {
+                        // ❌ Online login cũng thất bại
+                        ShowError(errorMessage ?? "Tài khoản hoặc mật khẩu sai");
+                        if (PasswordBox.Visibility == Visibility.Visible)
+                        {
+                            PasswordBox.Clear();
+                        }
+                        else
+                        {
+                            PasswordTextBox.Clear();
+                        }
+                    }
+                }
+                catch (Exception onlineEx)
+                {
+                    // ❌ Không thể kết nối online
+                    Debug.WriteLine($"[Login] Online login error: {onlineEx.Message}");
+                    ShowError("Không thể đăng nhập. Vui lòng kiểm tra tài khoản và mật khẩu.");
                     if (PasswordBox.Visibility == Visibility.Visible)
                     {
                         PasswordBox.Clear();
@@ -148,6 +221,7 @@ namespace VietnamFoodGuide.Views
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"[Login] Unexpected error: {ex.Message}");
                 ShowError($"Lỗi: {ex.Message}");
             }
             finally
@@ -198,16 +272,16 @@ namespace VietnamFoodGuide.Views
 
         private void ShowError(string message)
         {
-            ErrorMessage.Text = "❌ " + message;
+            ErrorMessage.Text = message;
             ErrorMessage.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 53, 69));
-            ErrorMessage.Visibility = Visibility.Visible;
+            if (ErrorBorder != null) ErrorBorder.Visibility = Visibility.Visible;
         }
 
         private void ShowSuccess(string message)
         {
             ErrorMessage.Text = "✅ " + message;
             ErrorMessage.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 167, 69));
-            ErrorMessage.Visibility = Visibility.Visible;
+            if (ErrorBorder != null) ErrorBorder.Visibility = Visibility.Visible;
         }
 
         private void OpenAdminDashboard()
@@ -229,8 +303,8 @@ namespace VietnamFoodGuide.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Không thể mở Admin Dashboard: {ex.Message}\n\nVui lòng mở thủ công: http://localhost/admin_dashboard.html",
-                                "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageDialog.ShowInformation($"Không thể mở Admin Dashboard: {ex.Message}\n\nVui lòng mở thủ công: http://localhost/admin_dashboard.html",
+                                "Thông báo");
                 Application.Current.Shutdown();
             }
         }
@@ -326,6 +400,57 @@ namespace VietnamFoodGuide.Views
         {
             // XOR với cùng key để giải mã
             return ProtectData(data);
+        }
+
+        /// <summary>
+        /// Bắt đầu timer cập nhật activity mỗi 30 giây
+        /// </summary>
+        private static void StartActivityTimer()
+        {
+            if (_activityTimer != null)
+            {
+                _activityTimer.Stop();
+            }
+
+            _activityTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(30)
+            };
+
+            _activityTimer.Tick += async (s, e) =>
+            {
+                if (string.IsNullOrEmpty(App.SessionToken))
+                {
+                    _activityTimer?.Stop();
+                    return;
+                }
+
+                try
+                {
+                    using (var client = new System.Net.Http.HttpClient())
+                    {
+                        client.Timeout = TimeSpan.FromSeconds(5);
+                        
+                        var data = new { token = App.SessionToken };
+                        var json = System.Text.Json.JsonSerializer.Serialize(data);
+                        var content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json");
+                        
+                        var response = await client.PostAsync($"{AppConfig.ApiBaseUrl}?action=updateActivity", content);
+                        
+                        if (response.IsSuccessStatusCode)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[Activity] Updated LastActiveTime");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Activity] Error: {ex.Message}");
+                }
+            };
+
+            _activityTimer.Start();
+            System.Diagnostics.Debug.WriteLine("[Activity] Timer started - will update every 30 seconds");
         }
     }
 }

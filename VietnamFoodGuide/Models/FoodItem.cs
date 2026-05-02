@@ -6,6 +6,7 @@ namespace VietnamFoodGuide.Models
     public class FoodItem : INotifyPropertyChanged
     {
         private bool _isFavorite;
+        private string _viewDetailsText;
 
         public int Id { get; set; }
         public string Name { get; set; }
@@ -19,6 +20,37 @@ namespace VietnamFoodGuide.Models
         public double Longitude { get; set; }
         public double Rating { get; set; }
 
+        // ===== GIAI ĐOẠN 1: Thêm các trường mới cho Geofence & Narration =====
+        /// <summary>
+        /// Bán kính kích hoạt geofence (đơn vị: mét)
+        /// Ví dụ: 50 = kích hoạt khi người dùng trong vòng 50m
+        /// </summary>
+        public double Radius { get; set; } = 30.0; // Mặc định 30m
+
+        /// <summary>
+        /// Mức ưu tiên phát thuyết minh (1-10, cao hơn = ưu tiên hơn)
+        /// Khi nhiều POI cùng trong vùng, phát POI có Priority cao nhất trước
+        /// </summary>
+        public int Priority { get; set; } = 5; // Mặc định mức trung bình
+
+        /// <summary>
+        /// URL hoặc đường dẫn file audio có sẵn (.mp3, .wav)
+        /// Nếu có, ưu tiên phát file audio thay vì TTS
+        /// </summary>
+        public string AudioUrl { get; set; }
+
+        /// <summary>
+        /// Script thuyết minh riêng (có thể khác với Description)
+        /// Dùng cho TTS khi không có AudioUrl
+        /// </summary>
+        public string NarrationScript { get; set; }
+
+        /// <summary>
+        /// Thời gian chờ trước khi phát lại (đơn vị: phút)
+        /// Ví dụ: 5 = sau khi phát xong, phải đợi 5 phút mới phát lại
+        /// </summary>
+        public int CooldownMinutes { get; set; } = 5; // Mặc định 5 phút
+
         public bool IsFavorite
         {
             get => _isFavorite;
@@ -27,6 +59,19 @@ namespace VietnamFoodGuide.Models
                 if (_isFavorite != value)
                 {
                     _isFavorite = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string ViewDetailsText
+        {
+            get => _viewDetailsText;
+            set
+            {
+                if (_viewDetailsText != value)
+                {
+                    _viewDetailsText = value;
                     OnPropertyChanged();
                 }
             }
