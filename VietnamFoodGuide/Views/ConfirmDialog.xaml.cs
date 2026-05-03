@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Media;
+using VietnamFoodGuide.Services;
 
 namespace VietnamFoodGuide.Views
 {
@@ -13,6 +15,14 @@ namespace VietnamFoodGuide.Views
             TxtMessage.Text = message;
             BtnYes.Content = yesText;
             BtnNo.Content = noText;
+
+            // Apply dark mode
+            ThemeService.Instance.ApplyTheme();
+            if (ThemeService.Instance.IsDarkMode)
+            {
+                DialogBorder.Background  = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x2E));
+                DialogBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x4E));
+            }
         }
 
         private void Yes_Click(object sender, RoutedEventArgs e)

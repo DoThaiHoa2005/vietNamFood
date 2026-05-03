@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Download Test QR Code</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .qr-box {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        img {
+            max-width: 100%;
+            border-radius: 10px;
+        }
+        .btn {
+            background: #34a853;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover {
+            background: #2d8e47;
+        }
+        .info {
+            background: #e8f5e9;
+            border-left: 4px solid #34a853;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        .code {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Test QR Code</h1>
+        <p>QR Code sẵn sàng để test ngay!</p>
+        
+        <div class="qr-box">
+            <img src="data:image/png;base64,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" alt="Test QR Code" id="qrImage">
+        </div>
+        
+        <div class="code">
+            <strong>Nội dung:</strong> VFG-TEST-2024
+        </div>
+        
+        <a href="#" class="btn" onclick="downloadQR(); return false;">💾 Tải xuống QR Code</a>
+        <a href="generate_qr_simple.html" class="btn" style="background: #1a73e8;">🎨 Tạo QR mới</a>
+        
+        <div class="info">
+            <h3>📋 Cách test:</h3>
+            <p><strong>1.</strong> Bấm "Tải xuống QR Code" ở trên</p>
+            <p><strong>2.</strong> Mở app VietnamFoodGuide</p>
+            <p><strong>3.</strong> Đăng nhập (admin/admin123)</p>
+            <p><strong>4.</strong> Mở QR Scanner</p>
+            <p><strong>5.</strong> Bấm "📁 Chọn ảnh QR"</p>
+            <p><strong>6.</strong> Chọn file vừa tải</p>
+            <p><strong>7.</strong> ✅ Quét thành công!</p>
+        </div>
+    </div>
+
+    <script>
+        function downloadQR() {
+            const img = document.getElementById('qrImage');
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw white background
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw image
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            // Download
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'test-qr-vfg-2024.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                alert('✅ QR Code đã tải xuống!\n\nGiờ mở app và test thôi! 🚀');
+            });
+        }
+    </script>
+</body>
+</html>

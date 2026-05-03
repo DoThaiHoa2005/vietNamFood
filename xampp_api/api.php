@@ -250,6 +250,15 @@ switch ($action) {
                 $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
                 $stmt->execute([$user['Id']]);
                 
+                // ✅ Tạo UserTracking ngay khi đăng nhập (hiện online ngay lập tức)
+                $stmt = $pdo->prepare("
+                    INSERT INTO UserTracking 
+                    (UserId, CurrentLat, CurrentLng, DestinationLat, DestinationLng, DestinationName, IsNavigating, IsActive, LastUpdate, CreatedDate)
+                    VALUES (?, 0, 0, NULL, NULL, NULL, 0, 1, NOW(), NOW())
+                    ON DUPLICATE KEY UPDATE IsActive = 1, LastUpdate = NOW()
+                ");
+                $stmt->execute([$user['Id']]);
+                
                 // Đăng nhập thành công
                 echo json_encode([
                     "success" => true,
@@ -422,8 +431,8 @@ switch ($action) {
         break;
 
     case 'getUsers':
-        // Lấy danh sách users (bao gồm thông tin QR và App)
-        $stmt = $pdo->query("SELECT Id, Username, Role, QRScanned, AppInstalled, LastActiveTime, CreatedDate FROM Users ORDER BY Id");
+        // Lấy danh sách users
+        $stmt = $pdo->query("SELECT Id, Username, Role, LastActiveTime, CreatedDate FROM Users ORDER BY Id");
         echo json_encode([
             "success" => true,
             "data" => $stmt->fetchAll()
@@ -523,6 +532,10 @@ switch ($action) {
                 ]);
             }
             
+            // Cập nhật LastActiveTime cho user để giữ trạng thái Online
+            $stmtUpdateActive = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
+            $stmtUpdateActive->execute([$userId]);
+            
             echo json_encode([
                 "success" => true,
                 "message" => "Cập nhật tracking thành công"
@@ -530,19 +543,56 @@ switch ($action) {
         }
         break;
 
+    case 'updateActivity':
+        // Cập nhật hoạt động qua Session Token
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $token = $data['token'] ?? '';
+            
+            if (empty($token)) {
+                http_response_code(400);
+                echo json_encode(["error" => "Token không hợp lệ"]);
+                break;
+            }
+            
+            // Tìm user dựa trên session
+            $stmt = $pdo->prepare("SELECT UserId FROM Sessions WHERE Token = ? AND ExpiresAt > NOW()");
+            $stmt->execute([$token]);
+            $session = $stmt->fetch();
+            
+            if ($session) {
+                $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?")->execute([$session['UserId']]);
+                echo json_encode(["success" => true]);
+            } else {
+                http_response_code(401);
+                echo json_encode(["error" => "Session không hợp lệ hoặc đã hết hạn"]);
+            }
+        }
+        break;
+
     case 'getAppStats':
-        // Lấy thống kê về QR scan và app install
-        // Đếm từ table qr_scans để chính xác hơn
-        $qrScanned = $pdo->query("SELECT COUNT(*) FROM qr_scans")->fetchColumn();
-        $appInstalled = $pdo->query("SELECT COUNT(*) FROM Users WHERE AppInstalled = 1")->fetchColumn();
-        $currentlyActive = $pdo->query("SELECT COUNT(*) FROM Users WHERE LastActiveTime > DATE_SUB(NOW(), INTERVAL 5 MINUTE)")->fetchColumn();
+        // Thống kê cho Admin Dashboard
+        $totalQR = $pdo->query("SELECT COUNT(*) FROM qr_scans")->fetchColumn();
+        $totalUsers = $pdo->query("SELECT COUNT(*) FROM Users")->fetchColumn();
+        $onlineCount = $pdo->query("SELECT COUNT(*) FROM Users WHERE LastActiveTime >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)")->fetchColumn();
+        $navigatingCount = $pdo->query("SELECT COUNT(*) FROM UserTracking WHERE IsNavigating = 1 AND IsActive = 1")->fetchColumn();
+        
+        // Danh sách người dùng online
+        $onlineUsers = $pdo->query("
+            SELECT Id, Username, LastActiveTime 
+            FROM Users 
+            WHERE LastActiveTime >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+            ORDER BY LastActiveTime DESC
+        ")->fetchAll();
         
         echo json_encode([
             "success" => true,
             "data" => [
-                "qrScanned" => (int)$qrScanned,
-                "appInstalled" => (int)$appInstalled,
-                "currentlyActive" => (int)$currentlyActive
+                "totalQR" => (int)$totalQR,
+                "totalUsers" => (int)$totalUsers,
+                "onlineCount" => (int)$onlineCount,
+                "navigatingCount" => (int)$navigatingCount,
+                "onlineUsers" => $onlineUsers
             ]
         ]);
         break;
@@ -552,8 +602,6 @@ switch ($action) {
         if ($method === 'POST') {
             $data = json_decode(file_get_contents('php://input'), true);
             $userId = (int)($data['userId'] ?? 0);
-            $qrScanned = (bool)($data['qrScanned'] ?? false);
-            $appInstalled = (bool)($data['appInstalled'] ?? false);
             
             if ($userId <= 0) {
                 http_response_code(400);
@@ -561,19 +609,44 @@ switch ($action) {
                 break;
             }
             
-            $stmt = $pdo->prepare("
-                UPDATE Users SET 
-                    QRScanned = ?,
-                    AppInstalled = ?,
-                    LastActiveTime = NOW()
-                WHERE Id = ?
-            ");
-            $stmt->execute([$qrScanned, $appInstalled, $userId]);
+            $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
+            $stmt->execute([$userId]);
             
             echo json_encode([
                 "success" => true,
                 "message" => "Cập nhật hoạt động user thành công"
             ]);
+        }
+        break;
+
+    case 'getUsers':
+        // Lấy danh sách users cho Admin Dashboard
+        $stmt = $pdo->query("SELECT Id, Username, Email, Role, IsAdmin, LastActiveTime FROM Users");
+        echo json_encode([
+            "success" => true,
+            "data" => $stmt->fetchAll()
+        ]);
+        break;
+
+    case 'setUserOffline':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $userId = (int)($data['userId'] ?? 0);
+            
+            if ($userId > 0) {
+                // Đặt LastActiveTime lùi về 10 phút trước để dashboard loại khỏi danh sách online
+                $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = DATE_SUB(NOW(), INTERVAL 10 MINUTE) WHERE Id = ?");
+                $stmt->execute([$userId]);
+                
+                // Tắt trạng thái tracking map
+                $stmt2 = $pdo->prepare("UPDATE UserTracking SET IsActive = 0, IsNavigating = 0 WHERE UserId = ?");
+                $stmt2->execute([$userId]);
+                
+                echo json_encode(["success" => true]);
+            } else {
+                http_response_code(400);
+                echo json_encode(["error" => "UserId không hợp lệ"]);
+            }
         }
         break;
 
@@ -808,6 +881,35 @@ switch ($action) {
         ]);
         break;
 
+    case 'updateActivity':
+        // Cập nhật LastActiveTime khi client gửi heartbeat
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $token = $data['token'] ?? '';
+            
+            if (!empty($token)) {
+                // Tìm user từ session token
+                $stmt = $pdo->prepare("SELECT UserId FROM Sessions WHERE Token = ? AND ExpiresAt > NOW()");
+                $stmt->execute([$token]);
+                $session = $stmt->fetch();
+                
+                if ($session) {
+                    $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
+                    $stmt->execute([$session['UserId']]);
+                    echo json_encode(["success" => true]);
+                } else {
+                    http_response_code(401);
+                    echo json_encode(["error" => "Session không hợp lệ"]);
+                }
+            } else {
+                http_response_code(400);
+                echo json_encode(["error" => "Token không được để trống"]);
+            }
+        }
+        break;
+
+
+
     // ============================================================
     // SESSION MANAGEMENT ENDPOINTS
     // ============================================================
@@ -888,11 +990,18 @@ switch ($action) {
         if ($method === 'POST') {
             $data = json_decode(file_get_contents('php://input'), true);
             $token = $data['token'] ?? '';
+            $userId = (int)($data['userId'] ?? 0);
             
             if (!empty($token)) {
                 // Xóa session
                 $stmt = $pdo->prepare("DELETE FROM Sessions WHERE Token = ?");
                 $stmt->execute([$token]);
+            }
+            
+            // ✅ Xóa UserTracking khi logout
+            if ($userId > 0) {
+                $stmt = $pdo->prepare("DELETE FROM UserTracking WHERE UserId = ?");
+                $stmt->execute([$userId]);
             }
             
             echo json_encode([

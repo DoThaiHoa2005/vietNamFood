@@ -5,11 +5,11 @@
         Height="750" Width="400"
         MinHeight="600" MinWidth="360"
         WindowStartupLocation="CenterScreen"
-        Background="White"
+        Background="{DynamicResource SurfaceBrush}"
         ResizeMode="CanResize"
         Icon="/Assets/Images/banner.png">
 
-    <Grid Background="White">
+    <Grid Background="{DynamicResource SurfaceBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="28"/>
             <RowDefinition Height="Auto"/>

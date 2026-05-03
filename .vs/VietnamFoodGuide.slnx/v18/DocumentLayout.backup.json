@@ -3,6 +3,18 @@
   "WorkspaceRootPath": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|e:\\it\\c#\\\u0111\u1ED3 \u00E1n c#\\vietnamfoodguide\\vietnamfoodguide\\views\\loginwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|solutionrelative:vietnamfoodguide\\views\\loginwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|e:\\it\\c#\\\u0111\u1ED3 \u00E1n c#\\vietnamfoodguide\\vietnamfoodguide\\views\\favoriteswindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|solutionrelative:vietnamfoodguide\\views\\favoriteswindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|e:\\it\\c#\\\u0111\u1ED3 \u00E1n c#\\vietnamfoodguide\\vietnamfoodguide\\views\\favoriteswindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|solutionrelative:vietnamfoodguide\\views\\favoriteswindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|e:\\it\\c#\\\u0111\u1ED3 \u00E1n c#\\vietnamfoodguide\\vietnamfoodguide\\views\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
       "RelativeMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|solutionrelative:vietnamfoodguide\\views\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
@@ -16,10 +28,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|e:\\it\\c#\\\u0111\u1ED3 \u00E1n c#\\vietnamfoodguide\\vietnamfoodguide\\app.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|solutionrelative:vietnamfoodguide\\app.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|e:\\it\\c#\\\u0111\u1ED3 \u00E1n c#\\vietnamfoodguide\\vietnamfoodguide\\views\\loginwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|solutionrelative:vietnamfoodguide\\views\\loginwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|e:\\it\\c#\\\u0111\u1ED3 \u00E1n c#\\vietnamfoodguide\\vietnamfoodguide\\views\\fooddetailwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -47,10 +55,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|e:\\it\\c#\\\u0111\u1ED3 \u00E1n c#\\vietnamfoodguide\\vietnamfoodguide\\models\\fooditem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{5E62BDA0-9FDF-76D6-BC18-1A2079ADC985}|VietnamFoodGuide\\VietnamFoodGuide.csproj|solutionrelative:vietnamfoodguide\\models\\fooditem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Data\\foods.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:VietnamFoodGuide\\Data\\foods.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -60,23 +64,48 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 2,
+              "Title": "FavoritesWindow.xaml",
+              "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\FavoritesWindow.xaml",
+              "RelativeDocumentMoniker": "VietnamFoodGuide\\Views\\FavoritesWindow.xaml",
+              "ToolTip": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\FavoritesWindow.xaml",
+              "RelativeToolTip": "VietnamFoodGuide\\Views\\FavoritesWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-05-02T04:18:15.275Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
               "Title": "LoginWindow.xaml.cs",
               "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\LoginWindow.xaml.cs",
               "RelativeDocumentMoniker": "VietnamFoodGuide\\Views\\LoginWindow.xaml.cs",
               "ToolTip": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\LoginWindow.xaml.cs",
               "RelativeToolTip": "VietnamFoodGuide\\Views\\LoginWindow.xaml.cs",
-              "ViewState": "AgIAAEQBAAAAAAAAAAAiwOEAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAFYBAAAAAAAAAAAwwM8BAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-06T00:42:44.154Z"
+              "WhenOpened": "2026-04-06T00:42:44.154Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
+              "Title": "FavoritesWindow.xaml.cs",
+              "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\FavoritesWindow.xaml.cs",
+              "RelativeDocumentMoniker": "VietnamFoodGuide\\Views\\FavoritesWindow.xaml.cs",
+              "ToolTip": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\FavoritesWindow.xaml.cs",
+              "RelativeToolTip": "VietnamFoodGuide\\Views\\FavoritesWindow.xaml.cs",
+              "ViewState": "AgIAAJMAAAAAAAAAAAAswJcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-02T04:19:09.033Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
               "Title": "WebView2.cs",
               "DocumentMoniker": "C:\\Users\\admin\\AppData\\Local\\Temp\\.vsdbgsrc\\a3800ba6c3264d9d918ff3ece4a7f5a7043e09c28a70ebb910dfb4832e81c54c\\WebView2.cs",
               "ToolTip": "C:\\Users\\admin\\AppData\\Local\\Temp\\.vsdbgsrc\\a3800ba6c3264d9d918ff3ece4a7f5a7043e09c28a70ebb910dfb4832e81c54c\\WebView2.cs",
@@ -86,19 +115,18 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 3,
               "Title": "MainWindow.xaml",
               "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\MainWindow.xaml",
               "RelativeDocumentMoniker": "VietnamFoodGuide\\Views\\MainWindow.xaml",
               "ToolTip": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\MainWindow.xaml",
               "RelativeToolTip": "VietnamFoodGuide\\Views\\MainWindow.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2026-03-13T16:30:18.273Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-03-13T16:30:18.273Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 4,
               "Title": "FoodDetailWindow.xaml",
               "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\FoodDetailWindow.xaml",
               "RelativeDocumentMoniker": "VietnamFoodGuide\\Views\\FoodDetailWindow.xaml",
@@ -109,7 +137,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 7,
               "Title": "FoodDetailWindow.xaml.cs",
               "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\FoodDetailWindow.xaml.cs",
               "RelativeDocumentMoniker": "VietnamFoodGuide\\Views\\FoodDetailWindow.xaml.cs",
@@ -121,7 +149,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 6,
               "Title": "App.xaml.cs",
               "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\App.xaml.cs",
               "RelativeDocumentMoniker": "VietnamFoodGuide\\App.xaml.cs",
@@ -133,7 +161,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 8,
               "Title": "MapWindow.xaml",
               "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\MapWindow.xaml",
               "RelativeDocumentMoniker": "VietnamFoodGuide\\Views\\MapWindow.xaml",
@@ -144,18 +172,19 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 9,
               "Title": "LoginWindow.xaml",
               "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\LoginWindow.xaml",
               "RelativeDocumentMoniker": "VietnamFoodGuide\\Views\\LoginWindow.xaml",
               "ToolTip": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Views\\LoginWindow.xaml",
               "RelativeToolTip": "VietnamFoodGuide\\Views\\LoginWindow.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2026-04-06T00:41:40.225Z"
+              "WhenOpened": "2026-04-06T00:41:40.225Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 11,
               "Title": "XamlReader.cs",
               "DocumentMoniker": "C:\\Users\\admin\\AppData\\Local\\Temp\\.vsdbgsrc\\173f8bf6bad9870ee8bf683827408a05773fce899cb4da0fbd175d2ba63aa18d\\XamlReader.cs",
               "ToolTip": "C:\\Users\\admin\\AppData\\Local\\Temp\\.vsdbgsrc\\173f8bf6bad9870ee8bf683827408a05773fce899cb4da0fbd175d2ba63aa18d\\XamlReader.cs",
@@ -165,7 +194,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 10,
               "Title": "LanguageService.cs",
               "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Services\\LanguageService.cs",
               "RelativeDocumentMoniker": "VietnamFoodGuide\\Services\\LanguageService.cs",
@@ -177,7 +206,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 12,
               "Title": "ImageDownloader.cs",
               "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Services\\ImageDownloader.cs",
               "RelativeDocumentMoniker": "VietnamFoodGuide\\Services\\ImageDownloader.cs",
@@ -189,19 +218,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
-              "Title": "foods.json",
-              "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Data\\foods.json",
-              "RelativeDocumentMoniker": "VietnamFoodGuide\\Data\\foods.json",
-              "ToolTip": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Data\\foods.json",
-              "RelativeToolTip": "VietnamFoodGuide\\Data\\foods.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAiAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-03-15T01:19:57.427Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 13,
               "Title": "FoodItem.cs",
               "DocumentMoniker": "E:\\IT\\C#\\\u0110\u1ED3 \u00E1n c#\\VietnamFoodGuide\\VietnamFoodGuide\\Models\\FoodItem.cs",
               "RelativeDocumentMoniker": "VietnamFoodGuide\\Models\\FoodItem.cs",

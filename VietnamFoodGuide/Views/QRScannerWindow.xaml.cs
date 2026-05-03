@@ -1,5 +1,6 @@
 using Microsoft.Win32;
 using System;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Management;
@@ -9,8 +10,12 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using VietnamFoodGuide.Models.Entities;
 using VietnamFoodGuide.Services;
+using ZXing;
+using ZXing.Common;
+using ZXing.Windows.Compatibility;
 
 namespace VietnamFoodGuide.Views
 {
@@ -91,46 +96,62 @@ namespace VietnamFoodGuide.Views
         {
             try
             {
-                // Check local storage first
-                var storageService = new StorageService();
-                var hasScannedLocal = storageService.HasScannedQR();
-
-                if (hasScannedLocal)
+                // LUÔN kiểm tra API trước - DB là nguồn sự thật duy nhất
+                // File local chỉ là cache phụ, không được dùng để bypass API
+                bool apiSaysScanned = false;
+                
+                try
                 {
-                    System.Diagnostics.Debug.WriteLine("✅ [QR] Already scanned (local storage)");
+                    using (var client = new HttpClient())
+                    {
+                        client.Timeout = TimeSpan.FromSeconds(5);
+                        var response = await client.GetAsync($"{AppConfig.ApiBaseUrl}?action=checkQRScan&deviceId={_deviceId}");
+                        
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var json = await response.Content.ReadAsStringAsync();
+                            var result = JsonSerializer.Deserialize<JsonElement>(json);
+                            
+                            if (result.TryGetProperty("hasScanned", out var hasScannedProp) && 
+                                hasScannedProp.GetBoolean())
+                            {
+                                apiSaysScanned = true;
+                                System.Diagnostics.Debug.WriteLine("✅ [QR] Already scanned (API confirmed)");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ [QR] API check failed ({ex.Message}), falling back to local storage");
+                    // Nếu API lỗi (offline), mới dùng file local làm fallback
+                    var storageService = new StorageService();
+                    apiSaysScanned = storageService.HasScannedQR();
+                }
+
+                if (apiSaysScanned)
+                {
+                    // Đồng bộ lại local file
+                    var storageService = new StorageService();
+                    storageService.SaveQRScanned();
                     await ShowSuccessAndProceed();
                     return;
                 }
 
-                // Check API
-                using (var client = new HttpClient())
+                // API xác nhận chưa quét → Xóa file local cũ (nếu có) để đồng bộ
+                var storage = new StorageService();
+                if (storage.HasScannedQR())
                 {
-                    client.Timeout = TimeSpan.FromSeconds(5);
-                    var response = await client.GetAsync($"{AppConfig.ApiBaseUrl}?action=checkQRScan&deviceId={_deviceId}");
-                    
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var json = await response.Content.ReadAsStringAsync();
-                        var result = JsonSerializer.Deserialize<JsonElement>(json);
-                        
-                        if (result.TryGetProperty("hasScanned", out var hasScannedProp) && 
-                            hasScannedProp.GetBoolean())
-                        {
-                            System.Diagnostics.Debug.WriteLine("✅ [QR] Already scanned (API)");
-                            storageService.SaveQRScanned(); // Save to local storage
-                            await ShowSuccessAndProceed();
-                            return;
-                        }
-                    }
+                    storage.ClearQRScanned();
+                    System.Diagnostics.Debug.WriteLine("🗑️ [QR] Local file cleared (out of sync with DB)");
                 }
 
-                // Not scanned yet, initialize QR scanner
+                // Khởi động màn hình quét
                 await InitializeQRScanner();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ [QR] Check error: {ex.Message}");
-                // If error, allow scanning
                 await InitializeQRScanner();
             }
         }
@@ -161,8 +182,24 @@ namespace VietnamFoodGuide.Views
                 // Handle messages from JavaScript
                 QRWebView.CoreWebView2.WebMessageReceived += OnQRScanned;
 
-                // Load QR scanner HTML
-                QRWebView.NavigateToString(GetQRScannerHTML());
+                // Write HTML to a temp file and serve over HTTPS using VirtualHost mapping
+                string tempFolder = Path.Combine(Path.GetTempPath(), "vfg_qr_scanner");
+                Directory.CreateDirectory(tempFolder);
+                string htmlPath = Path.Combine(tempFolder, "index.html");
+                File.WriteAllText(htmlPath, GetQRScannerHTML());
+
+                string assetsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets");
+                QRWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    "assets.local", 
+                    assetsPath, 
+                    Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+
+                QRWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    "qr.local", 
+                    tempFolder, 
+                    Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+
+                QRWebView.CoreWebView2.Navigate("https://qr.local/index.html");
 
                 LoadingOverlay.Visibility = Visibility.Collapsed;
             }
@@ -180,18 +217,26 @@ namespace VietnamFoodGuide.Views
                 var message = e.WebMessageAsJson;
                 var data = JsonSerializer.Deserialize<JsonElement>(message);
 
-                if (data.TryGetProperty("type", out var type) && type.GetString() == "qrScanned")
+                if (data.TryGetProperty("type", out var type))
                 {
-                    if (data.TryGetProperty("code", out var code))
+                    string typeStr = type.GetString();
+                    if (typeStr == "qrScanned")
                     {
-                        var qrCode = code.GetString();
-                        System.Diagnostics.Debug.WriteLine($"📱 [QR] Scanned: {qrCode}");
-                        
-                        if (!_hasScanned)
+                        if (data.TryGetProperty("code", out var code))
                         {
-                            _hasScanned = true;
-                            await SaveQRScan(qrCode);
+                            var qrCode = code.GetString();
+                            System.Diagnostics.Debug.WriteLine($"📱 [QR] Scanned: {qrCode}");
+                            
+                            if (!_hasScanned)
+                            {
+                                _hasScanned = true;
+                                await SaveQRScan(qrCode);
+                            }
                         }
+                    }
+                    else if (typeStr == "scanFailed")
+                    {
+                        ShowStatus(_lang.CurrentLanguage == "vi" ? "❌ Không tìm thấy mã QR trong ảnh. Vui lòng thử lại." : "❌ Could not find QR code in image. Please try again.", true);
                     }
                 }
             }
@@ -245,20 +290,27 @@ namespace VietnamFoodGuide.Views
 
         private async Task ShowSuccessAndProceed()
         {
-            await Dispatcher.InvokeAsync(async () =>
+            // Hiện overlay thành công
+            SuccessOverlay.Visibility = Visibility.Visible;
+            StatusBorder.Visibility = Visibility.Collapsed;
+
+            // Đợi 2 giây cho user thấy thông báo
+            await Task.Delay(2000);
+
+            // Mở MainWindow rồi đóng cửa sổ QR
+            try
             {
-                SuccessOverlay.Visibility = Visibility.Visible;
-                
-                // Wait 2 seconds then close window
-                await Task.Delay(2000);
-                
-                // Close this window (MainWindow will refresh automatically)
-                this.DialogResult = true;
-                this.Close();
-            });
+                var mainWindow = new MainWindow();
+                mainWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [QR] Open MainWindow error: {ex.Message}");
+            }
+            this.Close();
         }
 
-        private void SelectImage_Click(object sender, RoutedEventArgs e)
+        private async void SelectImage_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -272,19 +324,105 @@ namespace VietnamFoodGuide.Views
                 if (openFileDialog.ShowDialog() == true)
                 {
                     var imagePath = openFileDialog.FileName;
-                    System.Diagnostics.Debug.WriteLine($"📁 [QR] Selected image: {imagePath}");
-                    
-                    // Send image to JavaScript for QR decoding
-                    var script = $"decodeQRFromImage('{imagePath.Replace("\\", "\\\\")}');";
-                    QRWebView.CoreWebView2?.ExecuteScriptAsync(script);
-                    
-                    ShowStatus(_lang.CurrentLanguage == "vi" ? "🔍 Đang quét ảnh..." : "🔍 Scanning image...", false);
+                    BtnSelectImage.IsEnabled = false;
+                    ShowStatus(_lang.CurrentLanguage == "vi" ? "🔍 Đang quét ảnh..." : "🔍 Scanning...", false);
+
+                    // Add 8-second timeout - ZXing can hang on bad images
+                    var decodeTask = Task.Run(() => DecodeQRCodeFromFile(imagePath));
+                    var timeoutTask = Task.Delay(8000);
+                    var finished = await Task.WhenAny(decodeTask, timeoutTask);
+
+                    if (finished == timeoutTask)
+                    {
+                        ShowStatus(
+                            _lang.CurrentLanguage == "vi"
+                                ? "❌ Quét quá lâu. Hãy thử ảnh khác rõ nét hơn."
+                                : "❌ Timeout. Try a clearer image.",
+                            true);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            string qrCode = await decodeTask;
+                            if (!string.IsNullOrEmpty(qrCode))
+                            {
+                                System.Diagnostics.Debug.WriteLine($"✅ [ZXing] OK: {qrCode}");
+                                if (!_hasScanned)
+                                {
+                                    _hasScanned = true;
+                                    await SaveQRScan(qrCode);
+                                }
+                            }
+                            else
+                            {
+                                ShowStatus(
+                                    _lang.CurrentLanguage == "vi"
+                                        ? "❌ Không tìm thấy mã QR. Thử ảnh khác."
+                                        : "❌ No QR code found. Try another image.",
+                                    true);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            ShowStatus($"❌ {ex.Message}", true);
+                        }
+                    }
+                    BtnSelectImage.IsEnabled = true;
                 }
             }
             catch (Exception ex)
             {
                 ShowStatus($"❌ {ex.Message}", true);
+                BtnSelectImage.IsEnabled = true;
             }
+        }
+
+        private string DecodeQRCodeFromFile(string imagePath)
+        {
+            using (var bitmap = new Bitmap(imagePath))
+            {
+                // Dùng tên đầy đủ để tránh xung đột
+                var reader = new ZXing.Windows.Compatibility.BarcodeReader();
+                reader.AutoRotate = true;
+                reader.TryInverted = true;
+                reader.Options = new DecodingOptions
+                {
+                    TryHarder = true,
+                    PossibleFormats = new[] { BarcodeFormat.QR_CODE },
+                    // Cho phép nhận diện mã xa, nghiêng, lệch
+                    PureBarcode = false,
+                };
+
+                var result = reader.Decode(bitmap);
+                if (result != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"✅ [ZXing] Decoded: {result.Text}");
+                    return result.Text;
+                }
+
+                // Thử lại với tất cả định dạng barcode
+                reader.Options.PossibleFormats = null;
+                result = reader.Decode(bitmap);
+                System.Diagnostics.Debug.WriteLine(result != null
+                    ? $"✅ [ZXing] Decoded (all): {result.Text}"
+                    : "❌ [ZXing] No QR found");
+                return result?.Text;
+            }
+        }
+
+        private System.Drawing.Bitmap BitmapFromWriteableBitmap(WriteableBitmap wbm)
+        {
+            System.Drawing.Bitmap bmp;
+            using (var ms = new MemoryStream())
+            {
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(wbm));
+                encoder.Save(ms);
+                ms.Position = 0;
+                bmp = new System.Drawing.Bitmap(ms);
+            }
+            return bmp;
         }
 
         private void Skip_Click(object sender, RoutedEventArgs e)
@@ -352,67 +490,36 @@ namespace VietnamFoodGuide.Views
 <head>
     <meta charset='utf-8'/>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <script src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'></script>
+    <script src='https://assets.local/html5-qrcode.min.js'></script>
     <style>
-        body { margin: 0; padding: 0; background: #f8f9fa; font-family: Arial, sans-serif; }
-        #reader { width: 100%; height: 350px; }
-        #reader video { width: 100% !important; height: 100% !important; object-fit: cover; border-radius: 12px; }
-        .status { text-align: center; padding: 12px; font-size: 14px; color: #5f6368; }
+        body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+        #reader { width: 100%; }
+        #status { text-align: center; padding: 8px; font-size: 13px; color: #ccc; background: #111; }
     </style>
 </head>
 <body>
     <div id='reader'></div>
-    <div class='status' id='status'>📷 Camera ready - Point at QR code</div>
-    
+    <div id='status'>📷 Initializing...</div>
     <script>
-        let html5QrCode;
-        let isScanning = false;
-
-        function onScanSuccess(decodedText, decodedResult) {
-            if (isScanning) return;
-            isScanning = true;
-            
-            console.log('✅ QR Code scanned:', decodedText);
-            document.getElementById('status').innerHTML = '✅ Scanned successfully!';
-            
-            // Send to C#
-            window.chrome.webview.postMessage(JSON.stringify({
-                type: 'qrScanned',
-                code: decodedText
-            }));
-            
-            // Stop scanner
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    console.log('Scanner stopped');
-                }).catch(err => {
-                    console.error('Stop error:', err);
-                });
-            }
+        var scanned = false;
+        function onOk(text) {
+            if (scanned) return;
+            scanned = true;
+            document.getElementById('status').innerText = '✅ ' + text;
+            window.chrome.webview.postMessage(JSON.stringify({ type: 'qrScanned', code: text }));
         }
 
-        function onScanError(errorMessage) {
-            // Ignore scan errors (too noisy)
-        }
+        var scanner = new Html5QrcodeScanner('reader', {
+            fps: 15,
+            qrbox: { width: 250, height: 250 },
+            rememberLastUsedCamera: true,
+            showTorchButtonIfSupported: false,
+            showZoomSliderIfSupported: false,
+            defaultZoomValueIfSupported: 2
+        }, false);
 
-        // Start scanner
-        html5QrCode = new Html5Qrcode('reader');
-        html5QrCode.start(
-            { facingMode: 'environment' },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            onScanSuccess,
-            onScanError
-        ).catch(err => {
-            console.error('Camera error:', err);
-            document.getElementById('status').innerHTML = '❌ Camera not available. Please use Select Image button.';
-        });
-
-        // Function to decode QR from image file
-        function decodeQRFromImage(imagePath) {
-            // This would need additional implementation
-            // For now, we'll use the file input method
-            console.log('Decode from image:', imagePath);
-        }
+        scanner.render(onOk, function(err) {});
+        document.getElementById('status').innerText = '📷 Hướng camera vào mã QR';
     </script>
 </body>
 </html>";

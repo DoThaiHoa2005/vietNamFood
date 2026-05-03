@@ -6,7 +6,7 @@
         Height="780" Width="400"
         MinHeight="600" MinWidth="360"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BackgroundBrush}"
+        Background="{DynamicResource BackgroundBrush}"
         ResizeMode="CanResize"
         Icon="/Assets/Images/banner.png"
         KeyDown="Window_KeyDown">
@@ -90,7 +90,7 @@
                 </StackPanel>
 
                 <!-- Star Rating -->
-                <Border Grid.Column="1" Background="{StaticResource BackgroundBrush}"
+                <Border Grid.Column="1" Background="{DynamicResource BackgroundBrush}"
                         CornerRadius="12" Padding="10,6" VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center">
                         <ItemsControl x:Name="StarRating" Focusable="False">
