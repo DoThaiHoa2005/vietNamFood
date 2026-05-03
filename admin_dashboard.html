@@ -6,6 +6,7 @@
     <title>Vietnam Food Guide - Admin Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -46,6 +47,8 @@
             overflow-y: auto;
             z-index: 1000;
             transition: transform 0.3s;
+            display: flex;
+            flex-direction: column;
         }
 
         .sidebar-header {
@@ -66,6 +69,12 @@
 
         .sidebar-menu {
             padding: 20px 0;
+            flex: 1;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            margin-top: auto;
         }
 
         .menu-item {
@@ -100,6 +109,50 @@
             margin-left: 260px;
             padding: 20px;
             min-height: 100vh;
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 2001;
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            font-size: 20px;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .mobile-menu-toggle:hover {
+            background: var(--primary-dark);
+            transform: scale(1.05);
+        }
+
+        .mobile-menu-toggle:active {
+            transform: scale(0.95);
+        }
+
+        /* Overlay for mobile sidebar */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            backdrop-filter: blur(2px);
+        }
+
+        .sidebar-overlay.show {
+            display: block;
         }
 
         /* Header */
@@ -599,6 +652,22 @@
         }
 
         /* Responsive */
+        @media (max-width: 1024px) {
+            /* Tablet: Stack tracking layout vertically */
+            .tracking-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .tracking-user-list-container {
+                max-height: 250px;
+            }
+
+            .tracking-map-container {
+                height: 500px;
+            }
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -608,8 +677,14 @@
                 transform: translateX(0);
             }
 
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
             .main-content {
                 margin-left: 0;
+                padding: 10px;
+                padding-top: 80px;
             }
 
             .stats-grid {
@@ -623,13 +698,180 @@
             .search-filter {
                 flex-direction: column;
             }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-card {
+                padding: 15px;
+            }
+
+            .chart-card h3 {
+                font-size: 14px;
+            }
+
+            .header {
+                padding: 15px;
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+
+            .header-title h1 {
+                font-size: 20px;
+            }
+
+            .header-actions {
+                width: 100%;
+            }
+
+            .header-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .stat-card {
+                padding: 20px;
+            }
+
+            .stat-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+
+            .stat-info h3 {
+                font-size: 24px;
+            }
+
+            .modal-content {
+                width: 95%;
+                max-height: 95vh;
+            }
+
+            .modal-header, .modal-body, .modal-footer {
+                padding: 15px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 10px 8px;
+            }
+
+            .btn-sm {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+
+            /* Tracking Layout Mobile */
+            .tracking-layout {
+                grid-template-columns: 1fr !important;
+                height: auto !important;
+                gap: 15px;
+            }
+
+            .tracking-user-list-container {
+                max-height: 300px;
+                order: 1;
+            }
+
+            .tracking-map-container {
+                height: 400px !important;
+                min-height: 400px;
+                order: 2;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .charts-grid {
+                gap: 15px;
+            }
+
+            .chart-card {
+                padding: 12px;
+            }
+
+            .stat-card {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+
+            .lang-tabs {
+                flex-wrap: wrap;
+            }
+
+            .lang-tab {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            /* Tracking Layout Small Mobile */
+            .tracking-layout {
+                grid-template-columns: 1fr !important;
+                height: auto !important;
+                gap: 15px;
+            }
+
+            .tracking-user-list-container {
+                max-height: 250px;
+                order: 1;
+            }
+
+            .tracking-map-container {
+                height: 350px !important;
+                min-height: 350px;
+                order: 2;
+            }
         }
 
         /* Chart Container */
         .chart-container {
             position: relative;
-            height: 300px;
+            height: 350px;
             margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .chart-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .chart-card h3 {
+            color: var(--dark);
+            font-size: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--light);
+        }
+
+        .chart-card h3 i {
+            color: var(--primary);
         }
 
         /* Empty State */
@@ -651,6 +893,37 @@
         }
 
         /* Tracking Styles */
+        .tracking-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            height: 600px;
+        }
+
+        .tracking-user-list-container {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .tracking-map-container {
+            position: relative;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            min-height: 400px;
+        }
+
+        /* Food Marker Styles */
+        .food-marker {
+            transition: all 0.3s ease;
+        }
+
+        .food-marker:hover {
+            z-index: 1000 !important;
+        }
+
         .tracking-user-item {
             background: #f8f9fa;
             border: 1px solid var(--border);
@@ -707,6 +980,14 @@
 </head>
 <body>
 
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="toggleMobileMenu()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileMenu()"></div>
+
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -745,7 +1026,7 @@
         </div>
         
         <!-- Logout Button at Bottom -->
-        <div style="position: absolute; bottom: 20px; left: 0; right: 0; padding: 0 20px;">
+        <div class="sidebar-footer">
             <div class="menu-item" onclick="logout()" style="background: rgba(220, 38, 38, 0.1); color: #dc2626; border-radius: 8px;">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>Đăng Xuất</span>
@@ -865,12 +1146,11 @@
                     </div>
                     <select id="filterCategory" onchange="filterFoods()">
                         <option value="">Tất cả danh mục</option>
-                        <option value="Phở">Phở</option>
-                        <option value="Bún">Bún</option>
-                        <option value="Cơm">Cơm</option>
-                        <option value="Bánh Mì">Bánh Mì</option>
-                        <option value="Bánh Khác">Bánh Khác</option>
-                        <option value="Thức uống">Thức uống</option>
+                        <option value="Hải sản">🦐 Hải sản</option>
+                        <option value="Ốc">🐚 Ốc</option>
+                        <option value="Bún">🍜 Bún</option>
+                        <option value="Nướng">🍢 Nướng</option>
+                        <option value="Lẩu & Nướng">🍲 Lẩu & Nướng</option>
                     </select>
                     <select id="sortBy" onchange="sortFoods()">
                         <option value="name">Tên A-Z</option>
@@ -888,13 +1168,12 @@
                                 <th>Thành Phố</th>
                                 <th>Danh Mục</th>
                                 <th>Đánh Giá</th>
-                                <th>Tọa Độ</th>
                                 <th>Hành Động</th>
                             </tr>
                         </thead>
                         <tbody id="foodsBody">
                             <tr>
-                                <td colspan="7" class="loading">
+                                <td colspan="6" class="loading">
                                     <i class="fas fa-spinner"></i>
                                     <p>Đang tải dữ liệu...</p>
                                 </td>
@@ -943,8 +1222,12 @@
             <div class="content-card">
                 <div class="card-header">
                     <h2><i class="fas fa-chart-pie"></i> Thống Kê & Phân Tích</h2>
+                    <button class="btn btn-primary btn-sm" onclick="loadAnalytics()">
+                        <i class="fas fa-sync"></i> Làm Mới
+                    </button>
                 </div>
 
+                <!-- Top Stats -->
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-icon success">
@@ -964,10 +1247,75 @@
                             <p>Danh Mục Phổ Biến</p>
                         </div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-icon info">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalCategories">5</h3>
+                            <p>Tổng Danh Mục</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon danger">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="avgFavoritesPerFood">0</h3>
+                            <p>TB Yêu Thích/Quán</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="chart-container">
-                    <canvas id="categoryChart"></canvas>
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    <!-- Category Distribution Chart -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-chart-pie"></i> Phân Bố Danh Mục</h3>
+                        <div style="position: relative; height: 300px;">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Rating Distribution Chart -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-star"></i> Phân Bố Đánh Giá</h3>
+                        <div style="position: relative; height: 300px;">
+                            <canvas id="ratingChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Top Rated Foods Chart -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-trophy"></i> Top 10 Quán Đánh Giá Cao</h3>
+                        <div style="position: relative; height: 300px;">
+                            <canvas id="topRatedChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Favorites by Category Chart -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-heart"></i> Yêu Thích Theo Danh Mục</h3>
+                        <div style="position: relative; height: 300px;">
+                            <canvas id="favoritesCategoryChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- User Activity Chart -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-users"></i> Hoạt Động Người Dùng</h3>
+                        <div style="position: relative; height: 300px;">
+                            <canvas id="userActivityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- City Distribution Chart -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-map-marker-alt"></i> Phân Bố Theo Khu Vực</h3>
+                        <div style="position: relative; height: 300px;">
+                            <canvas id="cityChart"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1023,9 +1371,9 @@
                 </div>
 
                 <!-- Map and User List -->
-                <div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px; height: 600px;">
+                <div class="tracking-layout">
                     <!-- User List -->
-                    <div style="border: 1px solid var(--border); border-radius: 12px; overflow-y: auto; padding: 15px;">
+                    <div class="tracking-user-list-container">
                         <h3 style="margin-bottom: 15px; color: var(--dark);">👥 Người Dùng Online</h3>
                         <div id="trackingUserList">
                             <div class="loading">Đang tải...</div>
@@ -1033,8 +1381,33 @@
                     </div>
 
                     <!-- Map -->
-                    <div style="position: relative; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+                    <div class="tracking-map-container">
                         <div id="trackingMap" style="width: 100%; height: 100%;"></div>
+                        
+                        <!-- Map Legend -->
+                        <div style="
+                            position: absolute;
+                            bottom: 20px;
+                            right: 20px;
+                            background: white;
+                            padding: 12px 15px;
+                            border-radius: 10px;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                            z-index: 1000;
+                            font-size: 12px;
+                        ">
+                            <div style="font-weight: 600; margin-bottom: 8px; color: var(--dark);">
+                                <i class="fas fa-map-legend"></i> Chú Thích
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                                <div style="width: 12px; height: 12px; background: #2d7a4f; border-radius: 50%; border: 2px solid white;"></div>
+                                <span style="color: #666;">Người dùng online</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 12px; height: 12px; background: #E63946; border-radius: 50%; border: 2px solid white;"></div>
+                                <span style="color: #666;">Quán ăn</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1164,12 +1537,11 @@
                     <div class="form-group">
                         <label><i class="fas fa-list"></i> Danh Mục *</label>
                         <select id="editCategory">
-                            <option value="Phở">Phở</option>
-                            <option value="Bún">Bún</option>
-                            <option value="Cơm">Cơm</option>
-                            <option value="Bánh Mì">Bánh Mì</option>
-                            <option value="Bánh Khác">Bánh Khác</option>
-                            <option value="Thức uống">Thức uống</option>
+                            <option value="Hải sản">🦐 Hải sản</option>
+                            <option value="Ốc">🐚 Ốc</option>
+                            <option value="Bún">🍜 Bún</option>
+                            <option value="Nướng">🍢 Nướng</option>
+                            <option value="Lẩu & Nướng">🍲 Lẩu & Nướng</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -1186,6 +1558,60 @@
                     <div class="form-group">
                         <label><i class="fas fa-map-marker-alt"></i> Kinh Độ</label>
                         <input type="number" id="editLng" step="0.00001" placeholder="106.70532">
+                    </div>
+                </div>
+
+                <!-- ===== GEOFENCE & NARRATION FIELDS ===== -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-circle-notch"></i> Radius (mét)</label>
+                        <input type="number" id="editRadius" min="10" max="100" step="5" value="30" placeholder="30">
+                        <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">Bán kính kích hoạt geofence (10-100m)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-sort-numeric-up"></i> Priority (1-10)</label>
+                        <input type="number" id="editPriority" min="1" max="10" step="1" value="5" placeholder="5">
+                        <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">Mức ưu tiên phát thuyết minh</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-clock"></i> Cooldown (phút)</label>
+                        <input type="number" id="editCooldown" min="1" max="60" step="1" value="5" placeholder="5">
+                        <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">Thời gian chờ trước khi phát lại</small>
+                    </div>
+                </div>
+
+                <!-- Audio Uploads -->
+                <div class="form-group">
+                    <label><i class="fas fa-volume-up"></i> Audio Thuyết Minh</label>
+                    <div class="lang-tabs" style="margin-bottom: 10px;">
+                        <button type="button" class="lang-tab audio-tab active" onclick="switchAudioLang('vi')">🇻🇳 Tiếng Việt</button>
+                        <button type="button" class="lang-tab audio-tab" onclick="switchAudioLang('en')">🇺🇸 English</button>
+                        <button type="button" class="lang-tab audio-tab" onclick="switchAudioLang('cn')">🇨🇳 中文</button>
+                    </div>
+
+                    <div id="audio-lang-vi" class="audio-lang-panel active">
+                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
+                            <input type="file" id="audioFileVI" accept="audio/*" style="flex: 1;">
+                            <button type="button" class="btn btn-primary" onclick="generateAudio('vi')" style="white-space: nowrap;"><i class="fas fa-magic"></i> Tạo Audio (TTS)</button>
+                        </div>
+                        <input type="text" id="editAudioUrlVI" placeholder="Hoặc nhập URL audio tiếng Việt">
+                    </div>
+                    <div id="audio-lang-en" class="audio-lang-panel" style="display: none;">
+                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
+                            <input type="file" id="audioFileEN" accept="audio/*" style="flex: 1;">
+                            <button type="button" class="btn btn-primary" onclick="generateAudio('en')" style="white-space: nowrap;"><i class="fas fa-magic"></i> Tạo Audio (TTS)</button>
+                        </div>
+                        <input type="text" id="editAudioUrlEN" placeholder="Hoặc nhập URL audio tiếng Anh">
+                    </div>
+                    <div id="audio-lang-cn" class="audio-lang-panel" style="display: none;">
+                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
+                            <input type="file" id="audioFileCN" accept="audio/*" style="flex: 1;">
+                            <button type="button" class="btn btn-primary" onclick="generateAudio('cn')" style="white-space: nowrap;"><i class="fas fa-magic"></i> Tạo Audio (TTS)</button>
+                        </div>
+                        <input type="text" id="editAudioUrlCN" placeholder="Hoặc nhập URL audio tiếng Trung">
                     </div>
                 </div>
 
@@ -1266,6 +1692,39 @@
         });
 
         // ============================================================
+        // Mobile Menu Functions
+        // ============================================================
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggle = document.getElementById('mobileMenuToggle');
+            
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+            
+            // Change icon
+            const icon = toggle.querySelector('i');
+            if (sidebar.classList.contains('show')) {
+                icon.className = 'fas fa-times';
+            } else {
+                icon.className = 'fas fa-bars';
+            }
+        }
+
+        function closeMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const toggle = document.getElementById('mobileMenuToggle');
+            
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+            
+            // Reset icon
+            const icon = toggle.querySelector('i');
+            icon.className = 'fas fa-bars';
+        }
+
+        // ============================================================
         // Menu Navigation
         // ============================================================
         function initMenuNavigation() {
@@ -1273,6 +1732,11 @@
                 item.addEventListener('click', () => {
                     const section = item.getAttribute('data-section');
                     switchSection(section);
+                    
+                    // Close mobile menu after selecting
+                    if (window.innerWidth <= 768) {
+                        closeMobileMenu();
+                    }
                 });
             });
         }
@@ -1339,7 +1803,7 @@
             if (!foods || foods.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" class="empty-state">
+                        <td colspan="6" class="empty-state">
                             <i class="fas fa-inbox"></i>
                             <h3>Chưa có dữ liệu</h3>
                             <p>Thêm quán ăn mới để bắt đầu</p>
@@ -1361,7 +1825,6 @@
                     <td>${food.City}</td>
                     <td><span class="badge badge-success">${food.Category}</span></td>
                     <td>⭐ ${food.Rating}</td>
-                    <td style="font-size: 12px; color: #666;">${food.Latitude.toFixed(4)}, ${food.Longitude.toFixed(4)}</td>
                     <td>
                         <button class="btn btn-secondary btn-sm" onclick="editFood(${food.Id})">
                             <i class="fas fa-edit"></i>
@@ -1438,10 +1901,19 @@
             document.getElementById('editId').value = '';
             document.getElementById('editName').value = '';
             document.getElementById('editCity').value = 'TP.HCM - Vĩnh Khánh';
-            document.getElementById('editCategory').value = 'Phở';
+            document.getElementById('editCategory').value = 'Hải sản';
             document.getElementById('editRating').value = '4.5';
             document.getElementById('editLat').value = '';
             document.getElementById('editLng').value = '';
+            document.getElementById('editRadius').value = '30';
+            document.getElementById('editPriority').value = '5';
+            document.getElementById('editAudioUrlVI').value = '';
+            document.getElementById('editAudioUrlEN').value = '';
+            document.getElementById('editAudioUrlCN').value = '';
+            document.getElementById('audioFileVI').value = '';
+            document.getElementById('audioFileEN').value = '';
+            document.getElementById('audioFileCN').value = '';
+            document.getElementById('editCooldown').value = '5';
             document.getElementById('editImage').value = '';
             document.getElementById('editDescVI').value = '';
             document.getElementById('editDescEN').value = '';
@@ -1463,6 +1935,15 @@
             document.getElementById('editRating').value = food.Rating;
             document.getElementById('editLat').value = food.Latitude;
             document.getElementById('editLng').value = food.Longitude;
+            document.getElementById('editRadius').value = food.Radius || 30;
+            document.getElementById('editPriority').value = food.Priority || 5;
+            document.getElementById('editAudioUrlVI').value = food.AudioUrl_VI || '';
+            document.getElementById('editAudioUrlEN').value = food.AudioUrl_EN || '';
+            document.getElementById('editAudioUrlCN').value = food.AudioUrl_CN || '';
+            document.getElementById('audioFileVI').value = '';
+            document.getElementById('audioFileEN').value = '';
+            document.getElementById('audioFileCN').value = '';
+            document.getElementById('editCooldown').value = food.CooldownMinutes || 5;
             document.getElementById('editImage').value = food.ImagePath || '';
             document.getElementById('editDescVI').value = food.Description_VI || '';
             document.getElementById('editDescEN').value = food.Description_EN || '';
@@ -1487,6 +1968,84 @@
             
             event.target.classList.add('active');
             document.getElementById('lang-' + lang).classList.add('active');
+        }
+
+        function switchAudioLang(lang) {
+            document.querySelectorAll('.audio-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.audio-lang-panel').forEach(panel => {
+                panel.classList.remove('active');
+                panel.style.display = 'none';
+            });
+            
+            event.target.classList.add('active');
+            const panel = document.getElementById('audio-lang-' + lang);
+            panel.classList.add('active');
+            panel.style.display = 'block';
+        }
+
+        async function uploadAudio(file, lang, foodId) {
+            try {
+                const formData = new FormData();
+                formData.append('audio', file);
+                formData.append('lang', lang);
+                formData.append('foodId', foodId || Date.now());
+                const res = await fetch(`${API_BASE}?action=uploadAudio`, { method: 'POST', body: formData });
+                const data = await res.json();
+                return data.url || null;
+            } catch {
+                return null;
+            }
+        }
+
+        async function generateAudio(lang) {
+            const foodId = document.getElementById('editId').value;
+            if (!foodId) {
+                alert('Vui lòng lưu quán ăn trước khi tạo audio!');
+                return;
+            }
+
+            let textId = 'editDescVI';
+            if (lang === 'en') textId = 'editDescEN';
+            else if (lang === 'cn') textId = 'editDescCN';
+
+            const text = document.getElementById(textId).value;
+            if (!text || text.trim() === '') {
+                alert('Vui lòng nhập nội dung thuyết minh trước khi tạo audio!');
+                return;
+            }
+
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tạo...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_BASE}?action=generateTTS`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ foodId: foodId, lang: lang, text: text })
+                });
+
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('Tạo audio thành công!');
+                    
+                    let urlId = 'editAudioUrlVI';
+                    if (lang === 'en') urlId = 'editAudioUrlEN';
+                    else if (lang === 'cn') urlId = 'editAudioUrlCN';
+                    
+                    document.getElementById(urlId).value = data.url;
+                } else {
+                    alert('Lỗi: ' + (data.error || 'Không thể tạo audio'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Lỗi kết nối khi tạo audio');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
 
         function previewImage(event) {
@@ -1521,6 +2080,28 @@
                 const uploadedUrl = await uploadImage(fileInput.files[0]);
                 if (uploadedUrl) imagePath = uploadedUrl;
             }
+            
+            // Upload audio files if selected
+            let audioUrlVI = document.getElementById('editAudioUrlVI').value.trim();
+            const fileVI = document.getElementById('audioFileVI');
+            if (fileVI.files.length > 0) {
+                const url = await uploadAudio(fileVI.files[0], 'vi', id);
+                if (url) audioUrlVI = url;
+            }
+            
+            let audioUrlEN = document.getElementById('editAudioUrlEN').value.trim();
+            const fileEN = document.getElementById('audioFileEN');
+            if (fileEN.files.length > 0) {
+                const url = await uploadAudio(fileEN.files[0], 'en', id);
+                if (url) audioUrlEN = url;
+            }
+            
+            let audioUrlCN = document.getElementById('editAudioUrlCN').value.trim();
+            const fileCN = document.getElementById('audioFileCN');
+            if (fileCN.files.length > 0) {
+                const url = await uploadAudio(fileCN.files[0], 'cn', id);
+                if (url) audioUrlCN = url;
+            }
 
             const payload = {
                 Name: name,
@@ -1533,6 +2114,12 @@
                 Description_VI: document.getElementById('editDescVI').value.trim(),
                 Description_EN: document.getElementById('editDescEN').value.trim(),
                 Description_CN: document.getElementById('editDescCN').value.trim(),
+                Radius: parseFloat(document.getElementById('editRadius').value) || 30.0,
+                Priority: parseInt(document.getElementById('editPriority').value) || 5,
+                AudioUrl_VI: audioUrlVI || null,
+                AudioUrl_EN: audioUrlEN || null,
+                AudioUrl_CN: audioUrlCN || null,
+                CooldownMinutes: parseInt(document.getElementById('editCooldown').value) || 5
             };
 
             try {
@@ -1711,9 +2298,17 @@
         // ============================================================
         // Analytics
         // ============================================================
-        function loadAnalytics() {
+        let categoryChart, ratingChart, topRatedChart, favoritesCategoryChart, userActivityChart, cityChart;
+        let foodMarkers = {}; // Store food markers
+
+        async function loadAnalytics() {
+            if (!allFoods.length) {
+                await loadFoods();
+            }
+            
             if (!allFoods.length) return;
 
+            // Update top stats
             const topFood = allFoods.reduce((a, b) => a.Rating > b.Rating ? a : b);
             document.getElementById('topRatedName').textContent = topFood.Name;
 
@@ -1724,6 +2319,410 @@
 
             const popCat = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];
             document.getElementById('popularCategory').textContent = popCat ? `${popCat[0]} (${popCat[1]})` : '--';
+
+            // Calculate average favorites per food
+            try {
+                const favRes = await fetch(`${API_BASE}?action=getFavorites`);
+                const favData = await favRes.json();
+                const favorites = favData.data || [];
+                const avgFav = allFoods.length > 0 ? (favorites.length / allFoods.length).toFixed(1) : 0;
+                document.getElementById('avgFavoritesPerFood').textContent = avgFav;
+            } catch (error) {
+                console.error('Error loading favorites:', error);
+            }
+
+            // Render all charts
+            renderCategoryChart();
+            renderRatingChart();
+            renderTopRatedChart();
+            renderFavoritesCategoryChart();
+            renderUserActivityChart();
+            renderCityChart();
+        }
+
+        // Chart 1: Category Distribution (Doughnut)
+        function renderCategoryChart() {
+            const categories = {};
+            allFoods.forEach(f => {
+                categories[f.Category] = (categories[f.Category] || 0) + 1;
+            });
+
+            const ctx = document.getElementById('categoryChart');
+            if (categoryChart) categoryChart.destroy();
+
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categories),
+                    datasets: [{
+                        data: Object.values(categories),
+                        backgroundColor: [
+                            '#667eea',
+                            '#764ba2',
+                            '#f59e0b',
+                            '#2d7a4f',
+                            '#E63946'
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: { size: 12, weight: '600' },
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 12,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return ` ${context.label}: ${context.parsed} quán (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Chart 2: Rating Distribution (Bar)
+        function renderRatingChart() {
+            const ratings = { '5⭐': 0, '4-5⭐': 0, '3-4⭐': 0, '2-3⭐': 0, '1-2⭐': 0 };
+            allFoods.forEach(f => {
+                if (f.Rating >= 4.5) ratings['5⭐']++;
+                else if (f.Rating >= 4) ratings['4-5⭐']++;
+                else if (f.Rating >= 3) ratings['3-4⭐']++;
+                else if (f.Rating >= 2) ratings['2-3⭐']++;
+                else ratings['1-2⭐']++;
+            });
+
+            const ctx = document.getElementById('ratingChart');
+            if (ratingChart) ratingChart.destroy();
+
+            ratingChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(ratings),
+                    datasets: [{
+                        label: 'Số lượng quán',
+                        data: Object.values(ratings),
+                        backgroundColor: [
+                            '#2d7a4f',
+                            '#48bb78',
+                            '#f59e0b',
+                            '#fbbf24',
+                            '#dc2626'
+                        ],
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 12,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                stepSize: 1,
+                                font: { size: 11 }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        x: {
+                            ticks: { font: { size: 11, weight: '600' } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Chart 3: Top 10 Rated Foods (Horizontal Bar)
+        function renderTopRatedChart() {
+            const topFoods = [...allFoods]
+                .sort((a, b) => b.Rating - a.Rating)
+                .slice(0, 10);
+
+            const ctx = document.getElementById('topRatedChart');
+            if (topRatedChart) topRatedChart.destroy();
+
+            topRatedChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: topFoods.map(f => f.Name.length > 20 ? f.Name.substring(0, 20) + '...' : f.Name),
+                    datasets: [{
+                        label: 'Đánh giá',
+                        data: topFoods.map(f => f.Rating),
+                        backgroundColor: 'rgba(230, 57, 70, 0.8)',
+                        borderColor: '#E63946',
+                        borderWidth: 2,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 12,
+                            callbacks: {
+                                title: function(context) {
+                                    return topFoods[context[0].dataIndex].Name;
+                                },
+                                label: function(context) {
+                                    return ` Đánh giá: ${context.parsed.x}⭐`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: { font: { size: 11 } },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y: {
+                            ticks: { font: { size: 10 } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Chart 4: Favorites by Category (Pie)
+        async function renderFavoritesCategoryChart() {
+            try {
+                const favRes = await fetch(`${API_BASE}?action=getFavorites`);
+                const favData = await favRes.json();
+                const favorites = favData.data || [];
+
+                const categoryFavorites = {};
+                favorites.forEach(fav => {
+                    const food = allFoods.find(f => f.Id === fav.FoodId);
+                    if (food) {
+                        categoryFavorites[food.Category] = (categoryFavorites[food.Category] || 0) + 1;
+                    }
+                });
+
+                const ctx = document.getElementById('favoritesCategoryChart');
+                if (favoritesCategoryChart) favoritesCategoryChart.destroy();
+
+                favoritesCategoryChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(categoryFavorites),
+                        datasets: [{
+                            data: Object.values(categoryFavorites),
+                            backgroundColor: [
+                                '#E63946',
+                                '#457B9D',
+                                '#2d7a4f',
+                                '#f59e0b',
+                                '#764ba2'
+                            ],
+                            borderWidth: 3,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 15,
+                                    font: { size: 12, weight: '600' },
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                padding: 12,
+                                callbacks: {
+                                    label: function(context) {
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                        return ` ${context.label}: ${context.parsed} lượt (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error rendering favorites chart:', error);
+            }
+        }
+
+        // Chart 5: User Activity (Line)
+        async function renderUserActivityChart() {
+            try {
+                const usersRes = await fetch(`${API_BASE}?action=users`);
+                const users = await usersRes.json();
+
+                // Group users by month
+                const monthlyUsers = {};
+                users.forEach(user => {
+                    const date = new Date(user.CreatedDate);
+                    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    monthlyUsers[monthKey] = (monthlyUsers[monthKey] || 0) + 1;
+                });
+
+                // Get last 6 months
+                const months = Object.keys(monthlyUsers).sort().slice(-6);
+                const counts = months.map(m => monthlyUsers[m]);
+
+                const ctx = document.getElementById('userActivityChart');
+                if (userActivityChart) userActivityChart.destroy();
+
+                userActivityChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: months.map(m => {
+                            const [year, month] = m.split('-');
+                            return `Tháng ${month}/${year}`;
+                        }),
+                        datasets: [{
+                            label: 'Người dùng mới',
+                            data: counts,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            pointBackgroundColor: '#667eea',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: { font: { size: 12, weight: '600' } }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                padding: 12
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { 
+                                    stepSize: 1,
+                                    font: { size: 11 }
+                                },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            x: {
+                                ticks: { font: { size: 11 } },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error rendering user activity chart:', error);
+            }
+        }
+
+        // Chart 6: City Distribution (Polar Area)
+        function renderCityChart() {
+            const cities = {};
+            allFoods.forEach(f => {
+                const city = f.City.split(' - ')[0]; // Get main city name
+                cities[city] = (cities[city] || 0) + 1;
+            });
+
+            const ctx = document.getElementById('cityChart');
+            if (cityChart) cityChart.destroy();
+
+            cityChart = new Chart(ctx, {
+                type: 'polarArea',
+                data: {
+                    labels: Object.keys(cities),
+                    datasets: [{
+                        data: Object.values(cities),
+                        backgroundColor: [
+                            'rgba(230, 57, 70, 0.7)',
+                            'rgba(69, 123, 157, 0.7)',
+                            'rgba(45, 122, 79, 0.7)',
+                            'rgba(245, 158, 11, 0.7)',
+                            'rgba(118, 75, 162, 0.7)'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: { size: 12, weight: '600' },
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.parsed.r} quán`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            ticks: { 
+                                stepSize: 1,
+                                font: { size: 10 }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.1)' }
+                        }
+                    }
+                }
+            });
         }
 
         // ============================================================
@@ -1872,6 +2871,14 @@
                     attribution: 'Google Maps',
                     maxZoom: 20
                 }).addTo(trackingMap);
+                
+                // Add food markers to map
+                addFoodMarkersToMap();
+            } else {
+                // Fix map display issues when switching sections
+                setTimeout(() => {
+                    trackingMap.invalidateSize();
+                }, 100);
             }
             
             loadTrackingData();
@@ -1879,6 +2886,131 @@
             // Auto refresh every 2 seconds for smooth real-time tracking
             if (trackingInterval) clearInterval(trackingInterval);
             trackingInterval = setInterval(loadTrackingData, 2000);
+        }
+
+        // Add food markers to tracking map
+        async function addFoodMarkersToMap() {
+            try {
+                // Load foods if not already loaded
+                if (!allFoods || allFoods.length === 0) {
+                    const res = await fetch(`${API_BASE}?action=foods`);
+                    allFoods = await res.json();
+                }
+                
+                // Clear existing food markers
+                Object.values(foodMarkers).forEach(marker => {
+                    trackingMap.removeLayer(marker);
+                });
+                foodMarkers = {};
+                
+                // Add marker for each food
+                allFoods.forEach(food => {
+                    if (food.Latitude && food.Longitude) {
+                        // Get category emoji
+                        const categoryEmoji = getCategoryEmoji(food.Category);
+                        
+                        // Create custom icon for food
+                        const foodIcon = L.divIcon({
+                            html: `
+                                <div style="
+                                    width: 36px;
+                                    height: 36px;
+                                    background: linear-gradient(135deg, #E63946 0%, #d63946 100%);
+                                    border: 3px solid white;
+                                    border-radius: 50%;
+                                    box-shadow: 0 2px 8px rgba(230, 57, 70, 0.4);
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    cursor: pointer;
+                                    transition: transform 0.2s;
+                                ">
+                                    ${categoryEmoji}
+                                </div>
+                            `,
+                            iconSize: [36, 36],
+                            iconAnchor: [18, 18],
+                            popupAnchor: [0, -18],
+                            className: 'food-marker'
+                        });
+                        
+                        // Create marker
+                        const marker = L.marker([food.Latitude, food.Longitude], {
+                            icon: foodIcon,
+                            zIndexOffset: -100 // Place food markers below user markers
+                        });
+                        
+                        // Create radius circle
+                        const radius = food.Radius || 30;
+                        const circle = L.circle([food.Latitude, food.Longitude], {
+                            color: '#E63946',
+                            fillColor: '#E63946',
+                            fillOpacity: 0.1,
+                            radius: radius,
+                            weight: 1,
+                            dashArray: '4'
+                        });
+                        
+                        const layerGroup = L.layerGroup([circle, marker]).addTo(trackingMap);
+                        
+                        // Create popup content
+                        const popupContent = `
+                            <div style="min-width: 220px;">
+                                <div style="font-weight: 600; margin-bottom: 8px; color: #E63946; font-size: 15px;">
+                                    ${categoryEmoji} ${food.Name}
+                                </div>
+                                ${food.ImagePath ? `<img src="${food.ImagePath}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;">` : ''}
+                                <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+                                    <i class="fas fa-map-marker-alt" style="color: #E63946;"></i> ${food.City}
+                                </div>
+                                <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+                                    <i class="fas fa-tag" style="color: #457B9D;"></i> ${food.Category}
+                                </div>
+                                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                                    <i class="fas fa-star" style="color: #f59e0b;"></i> ${food.Rating} ⭐
+                                </div>
+                                <div style="font-size: 11px; color: #999;">
+                                    📍 ${food.Latitude.toFixed(6)}, ${food.Longitude.toFixed(6)}
+                                </div>
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+                                    <button onclick="editFood(${food.Id})" class="btn btn-primary btn-sm" style="width: 100%; padding: 6px; font-size: 12px;">
+                                        <i class="fas fa-edit"></i> Chỉnh Sửa
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        
+                        marker.bindPopup(popupContent);
+                        
+                        // Add hover effect
+                        marker.on('mouseover', function() {
+                            this.getElement().style.transform = 'scale(1.2)';
+                        });
+                        marker.on('mouseout', function() {
+                            this.getElement().style.transform = 'scale(1)';
+                        });
+                        
+                        foodMarkers[food.Id] = layerGroup;
+                    }
+                });
+                
+                console.log(`✅ Đã thêm ${Object.keys(foodMarkers).length} quán ăn lên bản đồ`);
+            } catch (error) {
+                console.error('❌ Lỗi khi thêm food markers:', error);
+            }
+        }
+
+        // Get category emoji
+        function getCategoryEmoji(category) {
+            const emojiMap = {
+                'Hải sản': '🦐',
+                'Ốc': '🐚',
+                'Bún': '🍜',
+                'Nướng': '🍢',
+                'Lẩu & Nướng': '🍲'
+            };
+            return emojiMap[category] || '🍽️';
         }
 
         async function loadTrackingData() {
@@ -1901,7 +3033,7 @@
                 
                 // Merge users with tracking data and check online status
                 const mergedData = tracking.map(track => {
-                    const user = users.find(u => u.Id === track.UserId);
+                    const user = users.find(u => u.Id == track.UserId);
                     return {
                         ...track,
                         Username: user ? user.Username : `User ${track.UserId}`,
@@ -1911,7 +3043,7 @@
                 });
                 
                 updateTrackingStats(mergedData, stats);
-                updateTrackingUserList(mergedData);
+                updateTrackingUserList(mergedData, stats);
                 updateTrackingMap(mergedData);
             } catch (error) {
                 console.error('Error loading tracking data:', error);
@@ -1928,57 +3060,41 @@
         }
 
         function updateTrackingStats(mergedData, stats) {
-            // Count only users who are logged in (online) and have tracking active
-            const online = mergedData.filter(t => t.isOnline && (t.IsActive == 1 || t.IsActive === true)).length;
-            
-            // Count only users who are ACTUALLY navigating (IsNavigating = true AND online)
-            const navigating = mergedData.filter(t => t.isOnline && (t.IsNavigating == 1 || t.IsNavigating === true) && (t.IsActive == 1 || t.IsActive === true)).length;
-            
-            // Debug: Log để kiểm tra
-            console.log('📊 [Tracking Stats]', {
-                totalMerged: mergedData.length,
-                online: online,
-                navigating: navigating,
-                mergedData: mergedData
-            });
-            
-            // Stats từ API đã đếm đúng từ database
-            // qrScanned: COUNT users WHERE QRScanned = TRUE
-            // appInstalled: COUNT users WHERE AppInstalled = TRUE
-            document.getElementById('qrScannedUsers').textContent = stats.qrScanned || 0;
-            document.getElementById('appInstalledUsers').textContent = stats.appInstalled || 0;
-            document.getElementById('trackingOnline').textContent = online;
-            document.getElementById('trackingNavigating').textContent = navigating;
+            // Dùng trực tiếp dữ liệu từ API getAppStats
+            document.getElementById('qrScannedUsers').textContent = stats.totalQR || 0;
+            document.getElementById('appInstalledUsers').textContent = stats.totalInstalled || 0;
+            document.getElementById('trackingOnline').textContent = stats.onlineCount || 0;
+            document.getElementById('trackingNavigating').textContent = stats.navigatingCount || 0;
         }
 
-        function updateTrackingUserList(mergedData) {
+        function updateTrackingUserList(mergedData, stats) {
             const listDiv = document.getElementById('trackingUserList');
             
-            // Filter to show only users who are online (logged in within 5 minutes)
-            const onlineUsers = mergedData.filter(t => t.isOnline && (t.IsActive == 1 || t.IsActive === true));
+            // Dùng danh sách online từ API getAppStats (dựa trên LastActiveTime)
+            const onlineUsers = stats.onlineUsers || [];
             
             if (onlineUsers.length === 0) {
                 listDiv.innerHTML = '<div class="loading">Không có người dùng online</div>';
                 return;
             }
             
-            listDiv.innerHTML = onlineUsers.map(track => {
-                const lastUpdate = new Date(track.LastUpdate).toLocaleTimeString('vi-VN');
-                const lastActive = track.LastActiveTime ? new Date(track.LastActiveTime).toLocaleTimeString('vi-VN') : '--';
+            listDiv.innerHTML = onlineUsers.map(user => {
+                const lastActive = user.LastActiveTime ? new Date(user.LastActiveTime).toLocaleTimeString('vi-VN') : '--';
+                // Tìm tracking data nếu có
+                const track = mergedData.find(t => t.UserId == user.Id);
+                const isNavigating = track && (track.IsNavigating == 1 || track.IsNavigating === true);
                 
                 return `
-                    <div class="tracking-user-item" onclick="focusTrackingUser(${track.UserId})">
+                    <div class="tracking-user-item" ${track ? `onclick="focusTrackingUser(${user.Id})"` : ''}>
                         <div class="tracking-user-header">
                             <span class="tracking-user-name">
                                 <span style="display: inline-block; width: 8px; height: 8px; background: #2d7a4f; border-radius: 50%; margin-right: 6px;"></span>
-                                ${track.Username}
+                                ${user.Username}
                             </span>
                             <span class="badge badge-success" style="font-size: 10px; padding: 2px 8px;">Online</span>
                         </div>
-                        <div class="tracking-user-info">📍 Vị trí: ${track.CurrentLat ? track.CurrentLat.toFixed(5) : '--'}, ${track.CurrentLng ? track.CurrentLng.toFixed(5) : '--'}</div>
-                        <div class="tracking-user-info">🕐 Cập nhật: ${lastUpdate}</div>
                         <div class="tracking-user-info">💚 Hoạt động: ${lastActive}</div>
-                        ${track.DestinationName ? `<div class="tracking-destination">🎯 Đang đi đến: ${track.DestinationName}</div>` : ''}
+                        ${isNavigating && track.DestinationName ? `<div class="tracking-destination">🎯 Đang đi đến: ${track.DestinationName}</div>` : ''}
                     </div>
                 `;
             }).join('');

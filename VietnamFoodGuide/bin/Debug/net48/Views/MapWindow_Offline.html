@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'/>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+            background: #e5e3df;
+            position: relative;
+        }
+        #mapCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .offline-banner {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff9800;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .info-panel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 16px 16px 0 0;
+            box-shadow: 0 -2px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            padding: 20px;
+        }
+        .info-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #202124;
+            margin: 0 0 8px;
+        }
+        .info-subtitle {
+            font-size: 14px;
+            color: #5f6368;
+            margin: 0 0 15px;
+        }
+        .info-distance {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a73e8;
+            margin: 10px 0;
+        }
+        .info-note {
+            font-size: 12px;
+            color: #5f6368;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .zoom-controls {
+            position: absolute;
+            right: 15px;
+            top: 80px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            user-select: none;
+        }
+        .zoom-btn:hover {
+            background: #f0f0f0;
+        }
+        .zoom-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div id="map">
+        <div class="offline-banner">📡 Chế độ Offline - Bản đồ từ dữ liệu đã tải</div>
+        <div class="zoom-controls">
+            <div class="zoom-btn" onclick="zoomIn()">+</div>
+            <div class="zoom-btn" onclick="zoomOut()">−</div>
+        </div>
+        <canvas id="mapCanvas"></canvas>
+    </div>
+    
+    <div class="info-panel">
+        <h3 class="info-title" id="restaurantName">Đang tải...</h3>
+        <div class="info-subtitle">📍 Khoảng cách đường chim bay</div>
+        <div class="info-distance" id="distance">Đang tính...</div>
+        <div class="info-note">
+            ⚠️ <b>Chế độ Offline:</b> Bản đồ sử dụng dữ liệu đã tải trước. 
+            Khi có kết nối mạng, bạn sẽ thấy routing chi tiết với chỉ đường từng bước.
+        </div>
+    </div>
+
+    <script>
+        var userLat = {USER_LAT};
+        var userLng = {USER_LNG};
+        var destLat = {DEST_LAT};
+        var destLng = {DEST_LNG};
+        var destName = "{DEST_NAME}";
+        var currentLanguage = "{CURRENT_LANG}";
+        var tilesPath = "{TILES_PATH}";
+        
+        var canvas = document.getElementById('mapCanvas');
+        var ctx = canvas.getContext('2d');
+        
+        // Map state
+        var zoom = 14;
+        var centerLat = (userLat + destLat) / 2;
+        var centerLng = (userLng + destLng) / 2;
+        var offsetX = 0;
+        var offsetY = 0;
+        
+        // Dragging state
+        var isDragging = false;
+        var lastX = 0;
+        var lastY = 0;
+        
+        // Tile cache
+        var tileCache = {};
+        var loadingTiles = {};
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            drawMap();
+        }
+        
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            var R = 6371;
+            var dLat = (lat2 - lat1) * Math.PI / 180;
+            var dLon = (lon2 - lon1) * Math.PI / 180;
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        function latLngToTile(lat, lng, z) {
+            var n = Math.pow(2, z);
+            var x = Math.floor((lng + 180) / 360 * n);
+            var y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n);
+            return {x: x, y: y};
+        }
+        
+        function tileToLatLng(x, y, z) {
+            var n = Math.pow(2, z);
+            var lng = x / n * 360 - 180;
+            var lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI;
+            return {lat: lat, lng: lng};
+        }
+        
+        function latLngToPixel(lat, lng) {
+            var centerTile = latLngToTile(centerLat, centerLng, zoom);
+            var pointTile = latLngToTile(lat, lng, zoom);
+            
+            var tileSize = 256;
+            var x = (pointTile.x - centerTile.x) * tileSize + canvas.width / 2 + offsetX;
+            var y = (pointTile.y - centerTile.y) * tileSize + canvas.height / 2 + offsetY;
+            
+            return {x: x, y: y};
+        }
+        
+        function loadTile(x, y, z, callback) {
+            var key = z + '/' + x + '/' + y;
+            
+            // Check cache
+            if (tileCache[key]) {
+                callback(tileCache[key]);
+                return;
+            }
+            
+            // Check if already loading
+            if (loadingTiles[key]) {
+                return;
+            }
+            
+            loadingTiles[key] = true;
+            
+            var img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = function() {
+                tileCache[key] = img;
+                delete loadingTiles[key];
+                callback(img);
+                drawMap();
+            };
+            
+            img.onerror = function() {
+                delete loadingTiles[key];
+                // Try online fallback
+                var onlineImg = new Image();
+                onlineImg.crossOrigin = 'anonymous';
+                onlineImg.onload = function() {
+                    tileCache[key] = onlineImg;
+                    callback(onlineImg);
+                    drawMap();
+                };
+                onlineImg.src = 'https://tile.openstreetmap.org/' + z + '/' + x + '/' + y + '.png';
+            };
+            
+            // Try offline first
+            if (tilesPath && tilesPath !== '{TILES_PATH}') {
+                img.src = 'file:///' + tilesPath + '/' + z + '/' + x + '/' + y + '.png';
+            } else {
+                // Fallback to online
+                img.src = 'https://tile.openstreetmap.org/' + z + '/' + x + '/' + y + '.png';
+            }
+        }
+        
+        function drawMap() {
+            // Clear canvas
+            ctx.fillStyle = '#e5e3df';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Calculate visible tiles
+            var centerTile = latLngToTile(centerLat, centerLng, zoom);
+            var tileSize = 256;
+            var tilesX = Math.ceil(canvas.width / tileSize) + 2;
+            var tilesY = Math.ceil(canvas.height / tileSize) + 2;
+            
+            var startX = centerTile.x - Math.floor(tilesX / 2);
+            var startY = centerTile.y - Math.floor(tilesY / 2);
+            
+            // Draw tiles
+            for (var i = 0; i < tilesX; i++) {
+                for (var j = 0; j < tilesY; j++) {
+                    var tileX = startX + i;
+                    var tileY = startY + j;
+                    
+                    if (tileX < 0 || tileY < 0) continue;
+                    
+                    var screenX = (tileX - centerTile.x) * tileSize + canvas.width / 2 + offsetX;
+                    var screenY = (tileY - centerTile.y) * tileSize + canvas.height / 2 + offsetY;
+                    
+                    var key = zoom + '/' + tileX + '/' + tileY;
+                    if (tileCache[key]) {
+                        ctx.drawImage(tileCache[key], screenX, screenY, tileSize, tileSize);
+                    } else {
+                        // Draw placeholder
+                        ctx.fillStyle = '#f0f0f0';
+                        ctx.fillRect(screenX, screenY, tileSize, tileSize);
+                        ctx.strokeStyle = '#ddd';
+                        ctx.strokeRect(screenX, screenY, tileSize, tileSize);
+                        
+                        // Load tile
+                        loadTile(tileX, tileY, zoom, function() {});
+                    }
+                }
+            }
+            
+            // Draw line between user and destination
+            var userPos = latLngToPixel(userLat, userLng);
+            var destPos = latLngToPixel(destLat, destLng);
+            
+            ctx.strokeStyle = '#1a73e8';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(userPos.x, userPos.y);
+            ctx.lineTo(destPos.x, destPos.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw user marker
+            ctx.fillStyle = '#4285f4';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(userPos.x, userPos.y, 10, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw destination marker
+            ctx.fillStyle = '#ea4335';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(destPos.x, destPos.y, 15, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw destination icon
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🍽️', destPos.x, destPos.y);
+        }
+        
+        function zoomIn() {
+            if (zoom < 18) {
+                zoom++;
+                drawMap();
+            }
+        }
+        
+        function zoomOut() {
+            if (zoom > 10) {
+                zoom--;
+                drawMap();
+            }
+        }
+        
+        function init() {
+            document.getElementById('restaurantName').innerHTML = destName;
+            
+            var distance = calculateDistance(userLat, userLng, destLat, destLng);
+            var distanceText = distance < 1 
+                ? Math.round(distance * 1000) + ' m'
+                : distance.toFixed(2) + ' km';
+            document.getElementById('distance').innerHTML = distanceText;
+            
+            resizeCanvas();
+            
+            console.log('Offline map initialized');
+            console.log('User:', userLat, userLng);
+            console.log('Destination:', destLat, destLng);
+            console.log('Zoom:', zoom);
+            console.log('Tiles path:', tilesPath);
+        }
+        
+        // Event listeners
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('load', init);
+        
+        // Mouse events
+        canvas.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                offsetX += e.clientX - lastX;
+                offsetY += e.clientY - lastY;
+                lastX = e.clientX;
+                lastY = e.clientY;
+                drawMap();
+            }
+        });
+        
+        canvas.addEventListener('mouseup', function() {
+            isDragging = false;
+        });
+        
+        canvas.addEventListener('mouseleave', function() {
+            isDragging = false;
+        });
+        
+        // Touch events
+        canvas.addEventListener('touchstart', function(e) {
+            isDragging = true;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+            e.preventDefault();
+        });
+        
+        canvas.addEventListener('touchmove', function(e) {
+            if (isDragging) {
+                offsetX += e.touches[0].clientX - lastX;
+                offsetY += e.touches[0].clientY - lastY;
+                lastX = e.touches[0].clientX;
+                lastY = e.touches[0].clientY;
+                drawMap();
+                e.preventDefault();
+            }
+        });
+        
+        canvas.addEventListener('touchend', function() {
+            isDragging = false;
+        });
+        
+        // Mouse wheel zoom
+        canvas.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                zoomIn();
+            } else {
+                zoomOut();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Speech.Synthesis;
 using System.Linq;
 using System.Media;

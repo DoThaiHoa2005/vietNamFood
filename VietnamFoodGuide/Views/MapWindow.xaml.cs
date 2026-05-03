@@ -1,4 +1,4 @@
-using Microsoft.Web.WebView2.Core;
+﻿using Microsoft.Web.WebView2.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -202,6 +202,12 @@ namespace VietnamFoodGuide.Views
                 MapBrowser.CoreWebView2.Settings.IsStatusBarEnabled = false;
                 MapBrowser.CoreWebView2.Settings.AreDevToolsEnabled = true; // Enable F12 Developer Tools
                 
+                // MAPPING FOR OFFLINE LEAFLET ASSETS
+                MapBrowser.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    "app.local", 
+                    AppContext.BaseDirectory, 
+                    Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+                
                 // Enable GPS permission - CRITICAL for geolocation
                 MapBrowser.CoreWebView2.PermissionRequested += (sender, args) =>
                 {
@@ -219,6 +225,10 @@ namespace VietnamFoodGuide.Views
                 MapBrowser.CoreWebView2.WebMessageReceived += OnWebMessage;
                 System.Diagnostics.Debug.WriteLine("? [C#] WebMessageReceived event handler registered");
                 
+                // MAPPING FOR MAP TILES CACHING
+                MapBrowser.CoreWebView2.AddWebResourceRequestedFilter("https://mt1.google.com/*", Microsoft.Web.WebView2.Core.CoreWebView2WebResourceContext.Image);
+                MapBrowser.CoreWebView2.WebResourceRequested += CoreWebView2_WebResourceRequested;
+                
                 LoadMap();
             }
             catch (Exception ex)
@@ -227,11 +237,76 @@ namespace VietnamFoodGuide.Views
             }
         }
 
+        private async void CoreWebView2_WebResourceRequested(object sender, Microsoft.Web.WebView2.Core.CoreWebView2WebResourceRequestedEventArgs e)
+        {
+            var deferral = e.GetDeferral();
+            try
+            {
+                string uri = e.Request.Uri;
+                if (uri.Contains("mt1.google.com"))
+                {
+                    // URL is usually like: https://mt1.google.com/vt/lyrs=m&x=1&y=2&z=3
+                    string fileName = uri.Replace("https://mt1.google.com/", "")
+                                         .Replace("/", "_")
+                                         .Replace("?", "_")
+                                         .Replace("&", "_")
+                                         .Replace("=", "_") + ".png";
+                    
+                    string tilesDir = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "Tiles");
+                    if (!System.IO.Directory.Exists(tilesDir)) System.IO.Directory.CreateDirectory(tilesDir);
+                    
+                    string filePath = System.IO.Path.Combine(tilesDir, fileName);
+                    
+                    bool isOnline = await NetworkService.IsInternetAvailableAsync();
+                    
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        // Offline or Online, if cached, serve from cache to save bandwidth and speed up
+                        // BUT maybe we should download if online? Google map tiles don't change often. Let's just serve cache.
+                        var stream = System.IO.File.OpenRead(filePath);
+                        e.Response = MapBrowser.CoreWebView2.Environment.CreateWebResourceResponse(
+                            stream, 200, "OK", "Content-Type: image/png\nCache-Control: public, max-age=31536000"
+                        );
+                    }
+                    else if (isOnline)
+                    {
+                        // Online, download and cache
+                        using (var client = new System.Net.Http.HttpClient())
+                        {
+                            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
+                            var bytes = await client.GetByteArrayAsync(uri);
+                            System.IO.File.WriteAllBytes(filePath, bytes);
+                            
+                            var stream = new System.IO.MemoryStream(bytes);
+                            e.Response = MapBrowser.CoreWebView2.Environment.CreateWebResourceResponse(
+                                stream, 200, "OK", "Content-Type: image/png\nCache-Control: public, max-age=31536000"
+                            );
+                        }
+                    }
+                    else
+                    {
+                        // Offline and no cache
+                        e.Response = MapBrowser.CoreWebView2.Environment.CreateWebResourceResponse(
+                            new System.IO.MemoryStream(), 404, "Not Found", ""
+                        );
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TileCache] Error: {ex.Message}");
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        }
+
         private void LoadMap()
         {
             if (_allFoods == null || _allFoods.Count == 0)
             {
-                MapBrowser.NavigateToString("<html><body style='margin:0;padding:20px;font-family:Arial;background:#f0f0f0;text-align:center'><h2>Kh�ng c� d? li?u qu�n an</h2></body></html>");
+                MapBrowser.NavigateToString("<html><body style='margin:0;padding:20px;font-family:Arial;background:#f0f0f0;text-align:center'><h2>Không có dữ liệu quán ăn</h2></body></html>");
                 return;
             }
 
@@ -242,7 +317,8 @@ namespace VietnamFoodGuide.Views
                 if (desc.Length > 100) desc = desc.Substring(0, 100) + "...";
                 string name = f.Name.Replace("\"", "&quot;").Replace("'", "&#39;");
                 string category = (f.Category ?? "").Replace("\"", "&quot;").Replace("'", "&#39;");
-                markersJson.Append($"{{name:'{name}',lat:{f.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},lng:{f.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},rating:{f.Rating.ToString(System.Globalization.CultureInfo.InvariantCulture)},desc:'{desc}',category:'{category}'}},");
+                double radius = f.Radius > 0 ? f.Radius : 30.0;
+                markersJson.Append($"{{name:'{name}',lat:{f.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},lng:{f.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},rating:{f.Rating.ToString(System.Globalization.CultureInfo.InvariantCulture)},desc:'{desc}',category:'{category}',radius:{radius.ToString(System.Globalization.CultureInfo.InvariantCulture)}}},");
             }
             if (_allFoods.Count > 0) markersJson.Length--;
             markersJson.Append("]");
@@ -259,9 +335,12 @@ namespace VietnamFoodGuide.Views
             string userLng = _userLng.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
             string html = "<!DOCTYPE html><html><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>";
-            html += "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>";
-            html += "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>";
-            html += "<script src='https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.min.js'></script>";
+            
+            // OFFLINE SUPPORT: Dùng file nội bộ thay vì CDN
+            html += "<link rel='stylesheet' href='https://app.local/Assets/leaflet.css'/>";
+            html += "<script src='https://app.local/Assets/leaflet.js'></script>";
+            html += "<script src='https://app.local/Assets/leaflet-rotate.min.js'></script>";
+            
             html += "<style>";
             html += "html,body{margin:0;padding:0;height:100%;width:100%;}";
             html += "#map{height:100%;width:100%;}";
@@ -315,6 +394,28 @@ namespace VietnamFoodGuide.Views
             html += ".btn-search-location{background:#1a73e8;color:white;border:none;padding:12px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}";
             html += ".btn-use-default{background:#5f6368;color:white;border:none;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;}";
             html += ".gps-help{font-size:11px;color:#ea4335;margin-top:10px;padding:8px;background:#fef7e0;border-radius:6px;text-align:left;line-height:1.4;}";
+
+            // DARK MODE: Inject extra CSS if dark mode is active
+            if (ThemeService.Instance.IsDarkMode)
+            {
+                html += "body{background:#12121A;color:#E8E8F0;}";
+                html += ".bottom-panel{background:#1E1E2E;box-shadow:0 -2px 12px rgba(0,0,0,0.5);}";
+                html += ".route-title{color:#E8E8F0;}.route-subtitle{color:#A0A0B8;}";
+                html += ".nav-instruction{background:#2A2A3E;}.nav-distance{color:#E8E8F0;}.nav-direction{color:#A0A0B8;}.nav-street{color:#E8E8F0;}";
+                html += ".navigation-info{background:#1A1A2E;color:#E8E8F0;}";
+                html += ".btn-location{background:#2A2A3E;border-color:#44445A;color:#E8E8F0;}";
+                html += ".btn-compass{background:#2A2A3E;border-color:#44445A;}";
+                html += ".search-panel{background:#1E1E2E;}.search-input{background:#2A2A3E;border-color:#44445A;color:#E8E8F0;}";
+                html += ".result-item{background:#2A2A3E;border-color:#44445A;}.result-item:hover{background:#333350;}";
+                html += ".result-name{color:#E8E8F0;}.result-address{color:#A0A0B8;}";
+                html += ".error-panel{background:#1E1E2E;}.error-message{color:#A0A0B8;}";
+                html += ".start-location-panel{background:#1E1E2E;}.start-location-title{color:#E8E8F0;}.start-location-subtitle{color:#A0A0B8;}";
+                html += ".suggestion-text{color:#A0A0B8;}";
+                // Dark map tiles via Leaflet CSS filter
+                html += ".leaflet-tile{filter:invert(100%) hue-rotate(180deg) brightness(0.9) saturate(0.85);}";
+                html += ".leaflet-container{background:#12121A;}";
+            }
+
             html += "</style></head><body>";
             html += "<div id='map'></div>";
             html += "<div class='top-controls'>";
@@ -498,6 +599,7 @@ namespace VietnamFoodGuide.Views
             html += "var compassEnabled=false,mapBearing=0;";
             
             // Dùng Google Maps tiles - hoạt động tốt ở Việt Nam, miễn phí cho sử dụng cơ bản
+            // Offline fallback: Bản đồ sẽ hiện nền xám nhưng các điểm đánh dấu (marker) vẫn hiện để xem được vị trí tương đối
             html += "L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{";
             html += "attribution:'Google Maps',maxZoom:20,subdomains:['mt0','mt1','mt2','mt3']";
             html += "}).addTo(map);";
@@ -560,6 +662,7 @@ namespace VietnamFoodGuide.Views
             html += "var icon=getCategoryIcon(f.category);";
             html += "var customIcon=L.divIcon({html:'<div style=\"background:#ea4335;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 4px rgba(0,0,0,0.25);border:1.5px solid white\">'+icon+'</div>',iconSize:[24,24],iconAnchor:[12,12],popupAnchor:[0,-14],className:''});";
             html += "var marker=L.marker([f.lat,f.lng],{icon:customIcon}).addTo(map);";
+            html += "var circle=L.circle([f.lat,f.lng],{color:'#ea4335',fillColor:'#ea4335',fillOpacity:0.15,radius:(f.radius||30),weight:1,dashArray:'4'}).addTo(map);";
             html += "var popupContent='<div style=\"min-width:240px;text-align:center\"><h3 style=\"color:#202124;font-size:18px;font-weight:600;margin:0 0 8px\">'+icon+' '+f.name+'</h3><div style=\"color:#f9ab00;font-size:15px;margin:6px 0;font-weight:500\">⭐ '+f.rating+'/5.0</div><div style=\"color:#5f6368;font-size:14px;margin:10px 0;text-align:left\">'+f.desc+'</div></div>';";
             html += "marker.bindPopup(popupContent,{maxWidth:320});";
             html += "marker.on('click',function(){selectRestaurant(f.lat,f.lng,f.name,f.rating);});";
@@ -603,11 +706,15 @@ namespace VietnamFoodGuide.Views
             html += "  var startPoint = L.latLng(fullRouteCoords[0][0], fullRouteCoords[0][1]);";
             html += "  var distFromStart = map.distance(userLatLng, startPoint);";
             html += "  if(distFromStart > 150 && !isCalculatingRoute){";
-            html += "     console.log('⚠️ [START] Lộ trình cũ không khớp vị trí hiện tại ('+distFromStart.toFixed(0)+'m). Đang tính lại...');";
-            html += "     if(currentLanguage==='vi') document.getElementById('routeSubtitle').innerHTML='🔄 Đang cập nhật lộ trình mới nhất...';";
-            html += "     calculateRoute(currentDest.lat, currentDest.lng, currentDest.name);";
-            html += "     setTimeout(startNavigation, 1500);"; // Thử lại sau 1.5s
-            html += "     return;";
+            html += "     if (navigator.onLine) {";
+            html += "         console.log('⚠️ [START] Lộ trình cũ không khớp vị trí hiện tại ('+distFromStart.toFixed(0)+'m). Đang tính lại...');";
+            html += "         if(currentLanguage==='vi') document.getElementById('routeSubtitle').innerHTML='🔄 Đang cập nhật lộ trình mới nhất...';";
+            html += "         calculateRoute(currentDest.lat, currentDest.lng, currentDest.name);";
+            html += "         setTimeout(startNavigation, 1500);"; // Thử lại sau 1.5s
+            html += "         return;";
+            html += "     } else {";
+            html += "         console.warn('⚠️ [START] Lộ trình cũ không khớp nhưng đang offline, bỏ qua việc tính lại.');";
+            html += "     }";
             html += "  }";
             html += "}";
 
@@ -685,9 +792,8 @@ namespace VietnamFoodGuide.Views
             html += "document.getElementById('suggestionText').innerHTML='💡 提示: 拖动蓝色标记更改起始位置';";
             html += "}";
             html += "if(currentDest){";
-            html += "calculateRoute(currentDest.lat,currentDest.lng,currentDest.name);";
+            html += "  map.setView([currentDest.lat,currentDest.lng],14);";
             html += "}";
-            html += "map.setView([currentDest.lat,currentDest.lng],14);";
             html += "}";
             html += "function closePanel(){";
             html += "hideBottomPanelHelper();";
@@ -1078,7 +1184,9 @@ namespace VietnamFoodGuide.Views
             // Try OSRM first (best for Vietnam)
             html += "var osrmUrl='https://router.project-osrm.org/route/v1/driving/'+userLatLng.lng+','+userLatLng.lat+';'+lng+','+lat+'?overview=full&geometries=geojson&steps=true&alternatives=false';";
             html += "console.log('🌐 [Route] Thử OSRM API...');";
-            html += "fetch(osrmUrl,{signal:AbortSignal.timeout(15000)})";
+            html += "  var osrmUrl='https://router.project-osrm.org/route/v1/driving/'+userLatLng.lng+','+userLatLng.lat+';'+lng+','+lat+'?overview=full&geometries=geojson&steps=true&alternatives=false';";
+            html += "  console.log('🌐 [Route] Thử OSRM API...');";
+            html += "  fetch(osrmUrl,{signal:AbortSignal.timeout(15000)})";
             html += ".then(function(res){";
             html += "  if(!res.ok){";
             html += "    console.warn('⚠️ [Route] OSRM failed with status:',res.status);";
@@ -1111,6 +1219,7 @@ namespace VietnamFoodGuide.Views
             html += "    if(steps.length>0){routeSteps=steps;currentStepIndex=0;}";
             html += "    console.log('✅ Đường đi thực tế đã được tính toán. Steps:',routeSteps.length);";
             html += "    console.log('📋 [DEBUG] Route steps:', JSON.stringify(steps.slice(0,5).map(function(s){return {type:s.maneuver.type,modifier:s.maneuver.modifier,name:s.name,distance:Math.round(s.distance)+'m'};})));";
+            html += "    try { var routeData = {coords:coords, distance:distance, duration:duration, steps:steps, start:[userLatLng.lat, userLatLng.lng], end:[lat, lng]}; localStorage.setItem('route_' + name, JSON.stringify(routeData)); console.log('💾 [Offline] Đã lưu cache lộ trình cho', name); } catch(e) { console.warn('Lỗi lưu cache:', e); }";
             html += "    isCalculatingRoute=false;";
             html += "  }else{";
             html += "    console.warn('⚠️ [Route] OSRM response invalid');";
@@ -1119,8 +1228,6 @@ namespace VietnamFoodGuide.Views
             html += "})";
             html += ".catch(function(err){";
             html += "  console.warn('⚠️ [Route] OSRM failed:',err.message,'- Thử OpenRouteService...');";
-            
-            // Fallback to OpenRouteService
             html += "  var orsUrl='https://api.openrouteservice.org/v2/directions/driving-car?start='+userLatLng.lng+','+userLatLng.lat+'&end='+lng+','+lat;";
             html += "  fetch(orsUrl,{";
             html += "    headers:{'Accept':'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8'},";
@@ -1142,8 +1249,6 @@ namespace VietnamFoodGuide.Views
             html += "      var distance=(data.features[0].properties.segments[0].distance/1000).toFixed(1);";
             html += "      var duration=Math.round(data.features[0].properties.segments[0].duration/60);";
             html += "      var steps=data.features[0].properties.segments[0].steps||[];";
-            
-            // Convert ORS steps to OSRM format
             html += "      routeSteps=steps.map(function(s){";
             html += "        return {";
             html += "          maneuver:{";
@@ -1155,7 +1260,6 @@ namespace VietnamFoodGuide.Views
             html += "          distance:s.distance";
             html += "        };";
             html += "      });";
-            
             html += "      routeCache[cacheKey]={coords:coords,distance:distance,duration:duration,steps:routeSteps};";
             html += "      routeLine=L.polyline(coords,{color:'#1A73E8',weight:6,opacity:1,lineJoin:'round',lineCap:'round',smoothFactor:1}).addTo(map);";
             html += "      console.log('🗺️ [Route] Đã vẽ đường đi thực tế (ORS) với',coords.length,'điểm');";
@@ -1171,6 +1275,7 @@ namespace VietnamFoodGuide.Views
             html += "      }";
             html += "      currentStepIndex=0;";
             html += "      console.log('✅ Đường đi thực tế (ORS) đã được tính toán. Steps:',routeSteps.length);";
+            html += "      try { var routeData = {coords:coords, distance:distance, duration:duration, steps:routeSteps, start:[userLatLng.lat, userLatLng.lng], end:[lat, lng]}; localStorage.setItem('route_' + name, JSON.stringify(routeData)); console.log('💾 [Offline] Đã lưu cache lộ trình (ORS) cho', name); } catch(e) { console.warn('Lỗi lưu cache:', e); }";
             html += "      isCalculatingRoute=false;";
             html += "    }else{";
             html += "      console.warn('⚠️ [Route] ORS response invalid');";
@@ -1187,6 +1292,28 @@ namespace VietnamFoodGuide.Views
             html += "}";
             
             html += "function drawOfflineRoute(userLatLng,lat,lng,name,dist){";
+            html += "var t=translations[currentLanguage];";
+            html += "try {";
+            html += "  var cached = localStorage.getItem('route_' + name);";
+            html += "  if(cached) {";
+            html += "    var data = JSON.parse(cached);";
+            html += "    var startPt = L.latLng(data.start[0], data.start[1]);";
+            html += "    if(map.distance(userLatLng, startPt) < 2000) {";
+            html += "      console.log('✅ [Offline] Tìm thấy lộ trình lưu sẵn cho', name);";
+            html += "      fullRouteCoords = data.coords;";
+            html += "      routeSteps = data.steps;";
+            html += "      currentStepIndex = 0;";
+            html += "      routeLine = L.polyline(data.coords, {color:'#1A73E8',weight:6,opacity:1,lineJoin:'round',lineCap:'round',smoothFactor:1}).addTo(map);";
+            html += "      var bnds = L.latLngBounds([userLatLng, [lat, lng]]);";
+            html += "      map.fitBounds(bnds, getFitBoundsPadding());";
+            html += "      if(currentLanguage==='vi') document.getElementById('routeSubtitle').innerHTML='🚗 '+data.distance+' km • '+data.duration+' phút (Ngoại tuyến)';";
+            html += "      else if(currentLanguage==='en') document.getElementById('routeSubtitle').innerHTML='🚗 '+data.distance+' km • '+data.duration+' min (Offline)';";
+            html += "      else document.getElementById('routeSubtitle').innerHTML='🚗 '+data.distance+' km • '+data.duration+' 分钟 (离线)';";
+            html += "      return;";
+            html += "    }";
+            html += "  }";
+            html += "} catch(e) { console.error('Lỗi đọc cache offline:', e); }";
+            
             html += "console.warn('⚠️ [Route] Sử dụng đường chim bay (không chính xác) - API routing thất bại');";
             html += "var coords=[[userLatLng.lat,userLatLng.lng],[lat,lng]];";
             html += "fullRouteCoords=coords;";
@@ -1194,7 +1321,7 @@ namespace VietnamFoodGuide.Views
             html += "var bounds=L.latLngBounds([userLatLng,[lat,lng]]);";
             html += "map.fitBounds(bounds,getFitBoundsPadding());";
             html += "var time=Math.round((parseFloat(dist)/30)*60);";
-            html += "var t=translations[currentLanguage];";
+            
             html += "if(currentLanguage==='vi'){";
             html += "document.getElementById('routeSubtitle').innerHTML='⚠️ ~'+dist+' km • ~'+time+' phút (đường chim bay - không chính xác)';";
             html += "}else if(currentLanguage==='en'){";
@@ -1814,6 +1941,21 @@ namespace VietnamFoodGuide.Views
                             }
                             
                             System.Diagnostics.Debug.WriteLine($"🧭 [C#] Navigation state changed: {nav}, Goal: {_destinationName} ({_destinationLat:F5}, {_destinationLng:F5})");
+                            
+                            // ✅ Khi đến điểm đích (navigation kết thúc), phát audio thuyết minh
+                            if (!nav && _isNavigating && !string.IsNullOrEmpty(_destinationName))
+                            {
+                                System.Diagnostics.Debug.WriteLine($"🎯 [C#] Arrived at destination: {_destinationName}");
+                                
+                                // Tìm quán ăn theo tên để phát audio
+                                var destinationFood = _allFoods?.FirstOrDefault(f => f.Name == _destinationName);
+                                if (destinationFood != null)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"🔊 [C#] Playing audio for destination: {destinationFood.Name}");
+                                    AutoNarrate(destinationFood);
+                                }
+                            }
+                            
                             System.Diagnostics.Debug.WriteLine($"🚀 [C#] GỬI lên server sau 200ms delay (isNavigating={nav})");
                             
                             // Capture snapshot values to avoid closure issues
@@ -1856,6 +1998,13 @@ namespace VietnamFoodGuide.Views
         {
             System.Diagnostics.Debug.WriteLine($"🔊 [C#] SpeakNavigation được gọi. Text: {text}, Language: {language}");
             
+            // ⚠️ KHÔNG phát giọng chỉ đường nếu audio thuyết minh đang phát
+            if (AudioCacheService.Instance.IsPlaying)
+            {
+                System.Diagnostics.Debug.WriteLine($"⏸️ [C#] Skip navigation voice - Audio narration is playing");
+                return;
+            }
+            
             Dispatcher.Invoke(() =>
             {
                 TxtNarrationName.Text = "🧭 " + (language == "vi" ? "Chỉ đường" : (language == "en" ? "Navigation" : "导航"));
@@ -1894,7 +2043,7 @@ namespace VietnamFoodGuide.Views
                 System.Diagnostics.Debug.WriteLine($"❌ [C#] Exception khi gọi Speak: {ex.Message}");
                 Dispatcher.Invoke(() =>
                 {
-                    MessageDialog.ShowError($"Lỗi giọng nói: {ex.Message}\n\nStack: {ex.StackTrace}", "Lỗi");
+                    MessageBox.Show($"Lỗi giọng nói: {ex.Message}\n\nStack: {ex.StackTrace}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
                 });
             }
         }
@@ -1924,21 +2073,22 @@ namespace VietnamFoodGuide.Views
             
             System.Diagnostics.Debug.WriteLine($"🔍 [CheckNearby] Checking from position: {_userLat}, {_userLng}");
             
-            foreach (var food in _allFoods)
+            // Sắp xếp theo Priority giảm dần
+            var sortedFoods = _allFoods.OrderByDescending(f => f.Priority).ToList();
+            
+            foreach (var food in sortedFoods)
             {
                 double dist = GetDistance(_userLat, _userLng, food.Latitude, food.Longitude);
                 
-                double narrateDistance = 20;
-                if (food.Rating >= 4.7) narrateDistance = 40;
-                else if (food.Rating >= 4.5) narrateDistance = 35;
-                else if (food.Rating >= 4.3) narrateDistance = 30;
-                else if (food.Rating >= 4.0) narrateDistance = 25;
+                // Dùng Radius từ database thay vì hardcode
+                double narrateDistance = food.Radius > 0 ? food.Radius : 30.0;
                 
-                System.Diagnostics.Debug.WriteLine($"  📍 {food.Name}: {dist:F1}m (threshold: {narrateDistance}m, rating: {food.Rating})");
+                System.Diagnostics.Debug.WriteLine($"  📍 {food.Name}: {dist:F1}m (radius: {narrateDistance}m, priority: {food.Priority})");
                 
                 if (dist <= narrateDistance)
                 {
-                    if (_lastNarratedFood?.Name != food.Name && !_speechService.IsPlaying)
+                    bool isAnyPlaying = _speechService.IsPlaying || AudioCacheService.Instance.IsPlaying;
+                    if (_lastNarratedFood?.Name != food.Name && !isAnyPlaying)
                     {
                         System.Diagnostics.Debug.WriteLine($"  🔊 [Narrate] Thuyết minh: {food.Name}");
                         _lastNarratedFood = food;
@@ -1958,20 +2108,41 @@ namespace VietnamFoodGuide.Views
             }
         }
 
-        private void AutoNarrate(FoodItem food)
+        private async void AutoNarrate(FoodItem food)
         {
+            string currentLang = LanguageService.Instance.CurrentLanguage; // vi, en, zh
+            
             Dispatcher.Invoke(() =>
             {
                 TxtNarrationName.Text = food.Name;
                 NarrationBanner.Visibility = Visibility.Visible;
             });
-            string text = food.DescriptionVI ?? food.Name;
-            _speechService.Speak(text, "vi-VN");
+            
+            // ✅ MapWindow LUÔN LUÔN dùng file audio (cả online và offline)
+            var audioCacheService = AudioCacheService.Instance;
+            if (audioCacheService.HasAudioForLanguage(food, currentLang))
+            {
+                System.Diagnostics.Debug.WriteLine($"🎵 [Map] Playing audio file for {food.Name} ({currentLang})...");
+                bool played = await audioCacheService.PlayAudioAsync(food, currentLang);
+                if (played)
+                {
+                    System.Diagnostics.Debug.WriteLine($"✅ [Map] Playing audio for {food.Name} ({currentLang})");
+                    // Auto hide banner khi phát xong
+                    audioCacheService.OnPlaybackCompleted += () => Dispatcher.Invoke(() => NarrationBanner.Visibility = Visibility.Collapsed);
+                    return;
+                }
+            }
+            
+            // ⚠️ Không có file audio cho ngôn ngữ này
+            System.Diagnostics.Debug.WriteLine($"⚠️ [Map] No audio file for {food.Name} ({currentLang})");
+            Dispatcher.Invoke(() => NarrationBanner.Visibility = Visibility.Collapsed);
         }
 
         private void StopNarration_Click(object sender, RoutedEventArgs e)
         {
             _speechService.Stop();
+            AudioCacheService.Instance.Stop();
+            GoogleTranslateSpeechService.Instance.Stop();
             NarrationBanner.Visibility = Visibility.Collapsed;
         }
 
@@ -2002,6 +2173,8 @@ namespace VietnamFoodGuide.Views
             if (_geoWatcher != null) _geoWatcher.Stop();
             _speechService.Stop();
             _speechService.Dispose();
+            AudioCacheService.Instance.Stop();
+            GoogleTranslateSpeechService.Instance.Stop();
             
             // Mở lại FoodDetailWindow với food hiện tại
             if (_food != null)

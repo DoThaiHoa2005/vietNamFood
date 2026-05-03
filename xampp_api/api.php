@@ -79,6 +79,170 @@ if ($action === 'upload' && $method === 'POST') {
     exit;
 }
 
+// ---- Generate TTS Audio via Google Translate ----
+if ($action === 'generateTTS' && $method === 'POST') {
+    header("Content-Type: application/json; charset=utf-8");
+    $uploadDir = __DIR__ . '/uploads/audio/';
+    if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+
+    $d = json_decode(file_get_contents('php://input'), true);
+    $foodId = intval($d['foodId'] ?? 0);
+    $lang   = $d['lang'] ?? 'vi';
+    $text   = $d['text'] ?? '';
+
+    if (!$foodId || !$text) {
+        http_response_code(400);
+        echo json_encode(["error" => "Thiếu foodId hoặc text"]);
+        exit;
+    }
+
+    // Map language codes to Google Translate TTS language codes
+    $ttsLang = 'vi';
+    if ($lang === 'en') $ttsLang = 'en';
+    elseif ($lang === 'cn' || $lang === 'zh') $ttsLang = 'zh-CN';
+
+    // Chia text thành các đoạn (chunk) <= 150 ký tự (Google TTS giới hạn 200 ký tự)
+    // Cắt theo từ (khoảng trắng) để đảm bảo không bị lỗi cắt ngang chữ
+    $chunks = [];
+    $words = preg_split('/\s+/u', $text);
+    $current = '';
+    foreach ($words as $word) {
+        if (mb_strlen($current . ' ' . $word, 'UTF-8') > 150) {
+            if ($current !== '') $chunks[] = trim($current);
+            $current = $word;
+        } else {
+            $current .= ($current === '' ? '' : ' ') . $word;
+        }
+    }
+    if ($current !== '') $chunks[] = trim($current);
+    if (empty($chunks)) $chunks[] = $text;
+
+    // Download each chunk from Google Translate TTS
+    $filename = "food_{$foodId}_{$lang}.mp3";
+    $dest = $uploadDir . $filename;
+    $fp = fopen($dest, 'wb');
+    
+    if (!$fp) {
+        http_response_code(500);
+        echo json_encode(["error" => "Không thể tạo file: $filename"]);
+        exit;
+    }
+
+    $success = true;
+    foreach ($chunks as $i => $chunk) {
+        $encodedText = urlencode($chunk);
+        // Dùng client=dict-chrome-ex thường ổn định hơn
+        $url = "https://translate.googleapis.com/translate_tts?ie=UTF-8&tl={$ttsLang}&client=gtx&q={$encodedText}";
+        
+        $options = [
+            "http" => [
+                "method" => "GET",
+                "header" => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n"
+            ],
+            "ssl" => [
+                "verify_peer" => false,
+                "verify_peer_name" => false
+            ]
+        ];
+        
+        $context = stream_context_create($options);
+        $audioData = @file_get_contents($url, false, $context);
+        
+        if ($audioData !== false && strlen($audioData) > 100) {
+            fwrite($fp, $audioData);
+        } else {
+            // Log lỗi để debug nếu file_get_contents thất bại
+            error_log("TTS Error on chunk $i for $url");
+            $success = false;
+            break;
+        }
+        
+        // Nghỉ 0.2s để tránh bị block
+        if ($i < count($chunks) - 1) usleep(200000);
+    }
+    fclose($fp);
+
+    if (!$success || filesize($dest) < 100) {
+        @unlink($dest);
+        http_response_code(500);
+        echo json_encode(["error" => "Google TTS không phản hồi. Vui lòng thử lại sau."]);
+        exit;
+    }
+
+    // Update database
+    $audioUrl = "uploads/audio/" . $filename;
+    $column = 'AudioUrl_VI';
+    if ($lang === 'en') $column = 'AudioUrl_EN';
+    elseif ($lang === 'zh' || $lang === 'cn') $column = 'AudioUrl_CN';
+
+    $stmt = $pdo->prepare("UPDATE Foods SET $column = ? WHERE Id = ?");
+    $stmt->execute([$audioUrl, $foodId]);
+
+    echo json_encode([
+        "success"  => true,
+        "url"      => $audioUrl,
+        "filename" => $filename,
+        "filesize" => filesize($dest),
+        "chunks"   => count($chunks),
+        "message"  => "Tạo audio TTS thành công ($lang)"
+    ]);
+    exit;
+}
+
+// ---- Upload audio ----
+if ($action === 'uploadAudio' && $method === 'POST') {
+    $uploadDir = __DIR__ . '/uploads/audio/';
+    if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+
+    if (!isset($_FILES['audio'])) {
+        http_response_code(400);
+        echo json_encode(["error" => "Không có file audio"]);
+        exit;
+    }
+
+    $file = $_FILES['audio'];
+    $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    $allowed = ['mp3','wav','ogg','m4a','aac'];
+
+    if (!in_array($ext, $allowed)) {
+        http_response_code(400);
+        echo json_encode(["error" => "Định dạng audio không hợp lệ. Chấp nhận: mp3, wav, ogg, m4a, aac"]);
+        exit;
+    }
+
+    // Tên file: foodId_lang.mp3 (ví dụ: 1_vi.mp3)
+    $foodId = $_POST['foodId'] ?? '';
+    $lang = $_POST['lang'] ?? 'vi';
+    $filename = "food_{$foodId}_{$lang}.{$ext}";
+    $dest = $uploadDir . $filename;
+
+    if (move_uploaded_file($file['tmp_name'], $dest)) {
+        $audioUrl = "uploads/audio/" . $filename;
+        
+        // Cập nhật URL vào database
+        $column = 'AudioUrl_VI';
+        if ($lang === 'en') $column = 'AudioUrl_EN';
+        elseif ($lang === 'zh' || $lang === 'cn') $column = 'AudioUrl_CN';
+        
+        if ($foodId) {
+            $stmt = $pdo->prepare("UPDATE Foods SET $column = ? WHERE Id = ?");
+            $stmt->execute([$audioUrl, $foodId]);
+        }
+        
+        header("Content-Type: application/json; charset=utf-8");
+        echo json_encode([
+            "success"  => true,
+            "url"      => $audioUrl,
+            "filename" => $filename,
+            "message"  => "Upload audio thành công"
+        ]);
+    } else {
+        http_response_code(500);
+        echo json_encode(["error" => "Upload audio thất bại"]);
+    }
+    exit;
+}
+
 header("Content-Type: application/json; charset=utf-8");
 
 switch ($action) {
@@ -90,14 +254,15 @@ switch ($action) {
         } elseif ($method === 'POST') {
             $d = json_decode(file_get_contents('php://input'), true);
             $stmt = $pdo->prepare("INSERT INTO Foods
-                (Name,City,Category,Description_VI,Description_EN,Description_CN,Latitude,Longitude,Rating,ImagePath,Radius,Priority,AudioUrl,NarrationScript,CooldownMinutes)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                (Name,City,Category,Description_VI,Description_EN,Description_CN,Latitude,Longitude,Rating,ImagePath,Radius,Priority,AudioUrl_VI,AudioUrl_EN,AudioUrl_CN,CooldownMinutes)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             $stmt->execute([
                 $d['Name'], $d['City'], $d['Category'],
                 $d['Description_VI'], $d['Description_EN'], $d['Description_CN'],
                 $d['Latitude'], $d['Longitude'], $d['Rating'], $d['ImagePath'],
-                $d['Radius'] ?? 30.0, $d['Priority'] ?? 5, $d['AudioUrl'] ?? null,
-                $d['NarrationScript'] ?? null, $d['CooldownMinutes'] ?? 5
+                $d['Radius'] ?? 30.0, $d['Priority'] ?? 5,
+                $d['AudioUrl_VI'] ?? null, $d['AudioUrl_EN'] ?? null, $d['AudioUrl_CN'] ?? null,
+                $d['CooldownMinutes'] ?? 5
             ]);
             echo json_encode(["id" => $pdo->lastInsertId(), "message" => "Thêm thành công"]);
         }
@@ -112,14 +277,15 @@ switch ($action) {
                 Name=?, City=?, Category=?,
                 Description_VI=?, Description_EN=?, Description_CN=?,
                 Latitude=?, Longitude=?, Rating=?, ImagePath=?,
-                Radius=?, Priority=?, AudioUrl=?, NarrationScript=?, CooldownMinutes=?
+                Radius=?, Priority=?, AudioUrl_VI=?, AudioUrl_EN=?, AudioUrl_CN=?, CooldownMinutes=?
                 WHERE Id=?");
             $stmt->execute([
                 $d['Name'], $d['City'], $d['Category'],
                 $d['Description_VI'], $d['Description_EN'], $d['Description_CN'],
                 $d['Latitude'], $d['Longitude'], $d['Rating'], $d['ImagePath'],
-                $d['Radius'] ?? 30.0, $d['Priority'] ?? 5, $d['AudioUrl'] ?? null,
-                $d['NarrationScript'] ?? null, $d['CooldownMinutes'] ?? 5,
+                $d['Radius'] ?? 30.0, $d['Priority'] ?? 5,
+                $d['AudioUrl_VI'] ?? null, $d['AudioUrl_EN'] ?? null, $d['AudioUrl_CN'] ?? null,
+                $d['CooldownMinutes'] ?? 5,
                 $id
             ]);
             echo json_encode(["message" => "Cập nhật thành công"]);
@@ -250,13 +416,29 @@ switch ($action) {
                 $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
                 $stmt->execute([$user['Id']]);
                 
+                // ✅ Tracking cài đặt app (chỉ đánh dấu lần đầu tiên)
+                if (!$user['HasInstalledApp']) {
+                    $stmt = $pdo->prepare("UPDATE Users SET HasInstalledApp = TRUE, FirstLoginDate = NOW() WHERE Id = ?");
+                    $stmt->execute([$user['Id']]);
+                }
+                
+                // ✅ Tạo UserTracking ngay khi đăng nhập (hiện online ngay lập tức)
+                $stmt = $pdo->prepare("
+                    INSERT INTO UserTracking 
+                    (UserId, CurrentLat, CurrentLng, DestinationLat, DestinationLng, DestinationName, IsNavigating, IsActive, LastUpdate, CreatedDate)
+                    VALUES (?, 0, 0, NULL, NULL, NULL, 0, 1, NOW(), NOW())
+                    ON DUPLICATE KEY UPDATE IsActive = 1, LastUpdate = NOW()
+                ");
+                $stmt->execute([$user['Id']]);
+                
                 // Đăng nhập thành công
                 echo json_encode([
                     "success" => true,
                     "user" => [
                         "id" => $user['Id'],
                         "username" => $user['Username'],
-                        "role" => $user['Role']
+                        "role" => $user['Role'],
+                        "hasInstalledApp" => (bool)$user['HasInstalledApp']
                     ],
                     "token" => $token,
                     "expiresAt" => $expiresAt,
@@ -422,8 +604,8 @@ switch ($action) {
         break;
 
     case 'getUsers':
-        // Lấy danh sách users (bao gồm thông tin QR và App)
-        $stmt = $pdo->query("SELECT Id, Username, Role, QRScanned, AppInstalled, LastActiveTime, CreatedDate FROM Users ORDER BY Id");
+        // Lấy danh sách users
+        $stmt = $pdo->query("SELECT Id, Username, Role, LastActiveTime, CreatedDate FROM Users ORDER BY Id");
         echo json_encode([
             "success" => true,
             "data" => $stmt->fetchAll()
@@ -483,45 +665,32 @@ switch ($action) {
                 break;
             }
             
-            // Kiểm tra xem user đã có tracking record chưa
-            $stmt = $pdo->prepare("SELECT Id FROM UserTracking WHERE UserId = ?");
-            $stmt->execute([$userId]);
-            $existing = $stmt->fetch();
+            // ✅ Sử dụng INSERT ... ON DUPLICATE KEY UPDATE để tránh race condition
+            // Chỉ có 1 bản ghi cho mỗi UserId (UNIQUE constraint)
+            $stmt = $pdo->prepare("
+                INSERT INTO UserTracking 
+                (UserId, CurrentLat, CurrentLng, DestinationLat, DestinationLng, DestinationName, IsNavigating, IsActive, LastUpdate, CreatedDate)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                ON DUPLICATE KEY UPDATE
+                    CurrentLat = VALUES(CurrentLat),
+                    CurrentLng = VALUES(CurrentLng),
+                    DestinationLat = VALUES(DestinationLat),
+                    DestinationLng = VALUES(DestinationLng),
+                    DestinationName = VALUES(DestinationName),
+                    IsNavigating = VALUES(IsNavigating),
+                    IsActive = VALUES(IsActive),
+                    LastUpdate = NOW()
+            ");
+            $stmt->execute([
+                $userId,
+                $currentLat, $currentLng,
+                $destLat, $destLng, $destName,
+                $isNavigating ? 1 : 0, $isActive ? 1 : 0
+            ]);
             
-            if ($existing) {
-                // Update existing record
-                $stmt = $pdo->prepare("
-                    UPDATE UserTracking SET
-                        CurrentLat = ?,
-                        CurrentLng = ?,
-                        DestinationLat = ?,
-                        DestinationLng = ?,
-                        DestinationName = ?,
-                        IsNavigating = ?,
-                        IsActive = ?,
-                        LastUpdate = NOW()
-                    WHERE UserId = ?
-                ");
-                $stmt->execute([
-                    $currentLat, $currentLng,
-                    $destLat, $destLng, $destName,
-                    $isNavigating ? 1 : 0, $isActive ? 1 : 0,
-                    $userId
-                ]);
-            } else {
-                // Insert new record
-                $stmt = $pdo->prepare("
-                    INSERT INTO UserTracking 
-                    (UserId, CurrentLat, CurrentLng, DestinationLat, DestinationLng, DestinationName, IsNavigating, IsActive, LastUpdate, CreatedDate)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-                ");
-                $stmt->execute([
-                    $userId,
-                    $currentLat, $currentLng,
-                    $destLat, $destLng, $destName,
-                    $isNavigating ? 1 : 0, $isActive ? 1 : 0
-                ]);
-            }
+            // Cập nhật LastActiveTime cho user để giữ trạng thái Online
+            $stmtUpdateActive = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
+            $stmtUpdateActive->execute([$userId]);
             
             echo json_encode([
                 "success" => true,
@@ -530,19 +699,91 @@ switch ($action) {
         }
         break;
 
+    case 'updateActivity':
+        // Cập nhật hoạt động qua Session Token
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $token = $data['token'] ?? '';
+            
+            if (empty($token)) {
+                http_response_code(400);
+                echo json_encode(["error" => "Token không hợp lệ"]);
+                break;
+            }
+            
+            // Tìm user dựa trên session
+            $stmt = $pdo->prepare("SELECT UserId FROM Sessions WHERE Token = ? AND ExpiresAt > NOW()");
+            $stmt->execute([$token]);
+            $session = $stmt->fetch();
+            
+            if ($session) {
+                $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?")->execute([$session['UserId']]);
+                echo json_encode(["success" => true]);
+            } else {
+                http_response_code(401);
+                echo json_encode(["error" => "Session không hợp lệ hoặc đã hết hạn"]);
+            }
+        }
+        break;
+
+    case 'updateAudioUrls':
+        // Cập nhật AudioUrl cho food (từ AudioGeneratorService)
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $foodId = (int)($data['foodId'] ?? 0);
+            $audioUrl_VI = $data['audioUrl_VI'] ?? null;
+            $audioUrl_EN = $data['audioUrl_EN'] ?? null;
+            $audioUrl_CN = $data['audioUrl_CN'] ?? null;
+            
+            if ($foodId <= 0) {
+                http_response_code(400);
+                echo json_encode(["error" => "FoodId không hợp lệ"]);
+                break;
+            }
+            
+            // Cập nhật AudioUrl vào database
+            $stmt = $pdo->prepare("
+                UPDATE Foods SET
+                    AudioUrl_VI = ?,
+                    AudioUrl_EN = ?,
+                    AudioUrl_CN = ?
+                WHERE Id = ?
+            ");
+            $stmt->execute([$audioUrl_VI, $audioUrl_EN, $audioUrl_CN, $foodId]);
+            
+            echo json_encode([
+                "success" => true,
+                "message" => "Cập nhật AudioUrl thành công",
+                "foodId" => $foodId
+            ]);
+        }
+        break;
+
     case 'getAppStats':
-        // Lấy thống kê về QR scan và app install
-        // Đếm từ table qr_scans để chính xác hơn
-        $qrScanned = $pdo->query("SELECT COUNT(*) FROM qr_scans")->fetchColumn();
-        $appInstalled = $pdo->query("SELECT COUNT(*) FROM Users WHERE AppInstalled = 1")->fetchColumn();
-        $currentlyActive = $pdo->query("SELECT COUNT(*) FROM Users WHERE LastActiveTime > DATE_SUB(NOW(), INTERVAL 5 MINUTE)")->fetchColumn();
+        // Thống kê cho Admin Dashboard
+        $totalQR = $pdo->query("SELECT COUNT(*) FROM qr_scans")->fetchColumn();
+        $totalInstalled = $pdo->query("SELECT COUNT(*) FROM Users WHERE HasInstalledApp = TRUE")->fetchColumn();
+        $totalUsers = $pdo->query("SELECT COUNT(*) FROM Users")->fetchColumn();
+        $onlineCount = $pdo->query("SELECT COUNT(*) FROM Users WHERE LastActiveTime >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)")->fetchColumn();
+        $navigatingCount = $pdo->query("SELECT COUNT(*) FROM UserTracking WHERE IsNavigating = 1 AND IsActive = 1")->fetchColumn();
+        
+        // Danh sách người dùng online
+        $onlineUsers = $pdo->query("
+            SELECT Id, Username, LastActiveTime 
+            FROM Users 
+            WHERE LastActiveTime >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+            ORDER BY LastActiveTime DESC
+        ")->fetchAll();
         
         echo json_encode([
             "success" => true,
             "data" => [
-                "qrScanned" => (int)$qrScanned,
-                "appInstalled" => (int)$appInstalled,
-                "currentlyActive" => (int)$currentlyActive
+                "totalQR" => (int)$totalQR,
+                "totalInstalled" => (int)$totalInstalled,
+                "totalUsers" => (int)$totalUsers,
+                "onlineCount" => (int)$onlineCount,
+                "navigatingCount" => (int)$navigatingCount,
+                "onlineUsers" => $onlineUsers
             ]
         ]);
         break;
@@ -552,8 +793,6 @@ switch ($action) {
         if ($method === 'POST') {
             $data = json_decode(file_get_contents('php://input'), true);
             $userId = (int)($data['userId'] ?? 0);
-            $qrScanned = (bool)($data['qrScanned'] ?? false);
-            $appInstalled = (bool)($data['appInstalled'] ?? false);
             
             if ($userId <= 0) {
                 http_response_code(400);
@@ -561,19 +800,44 @@ switch ($action) {
                 break;
             }
             
-            $stmt = $pdo->prepare("
-                UPDATE Users SET 
-                    QRScanned = ?,
-                    AppInstalled = ?,
-                    LastActiveTime = NOW()
-                WHERE Id = ?
-            ");
-            $stmt->execute([$qrScanned, $appInstalled, $userId]);
+            $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
+            $stmt->execute([$userId]);
             
             echo json_encode([
                 "success" => true,
                 "message" => "Cập nhật hoạt động user thành công"
             ]);
+        }
+        break;
+
+    case 'getUsers':
+        // Lấy danh sách users cho Admin Dashboard
+        $stmt = $pdo->query("SELECT Id, Username, Email, Role, IsAdmin, LastActiveTime FROM Users");
+        echo json_encode([
+            "success" => true,
+            "data" => $stmt->fetchAll()
+        ]);
+        break;
+
+    case 'setUserOffline':
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $userId = (int)($data['userId'] ?? 0);
+            
+            if ($userId > 0) {
+                // Đặt LastActiveTime lùi về 10 phút trước để dashboard loại khỏi danh sách online
+                $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = DATE_SUB(NOW(), INTERVAL 10 MINUTE) WHERE Id = ?");
+                $stmt->execute([$userId]);
+                
+                // Tắt trạng thái tracking map
+                $stmt2 = $pdo->prepare("UPDATE UserTracking SET IsActive = 0, IsNavigating = 0 WHERE UserId = ?");
+                $stmt2->execute([$userId]);
+                
+                echo json_encode(["success" => true]);
+            } else {
+                http_response_code(400);
+                echo json_encode(["error" => "UserId không hợp lệ"]);
+            }
         }
         break;
 
@@ -808,6 +1072,35 @@ switch ($action) {
         ]);
         break;
 
+    case 'updateActivity':
+        // Cập nhật LastActiveTime khi client gửi heartbeat
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $token = $data['token'] ?? '';
+            
+            if (!empty($token)) {
+                // Tìm user từ session token
+                $stmt = $pdo->prepare("SELECT UserId FROM Sessions WHERE Token = ? AND ExpiresAt > NOW()");
+                $stmt->execute([$token]);
+                $session = $stmt->fetch();
+                
+                if ($session) {
+                    $stmt = $pdo->prepare("UPDATE Users SET LastActiveTime = NOW() WHERE Id = ?");
+                    $stmt->execute([$session['UserId']]);
+                    echo json_encode(["success" => true]);
+                } else {
+                    http_response_code(401);
+                    echo json_encode(["error" => "Session không hợp lệ"]);
+                }
+            } else {
+                http_response_code(400);
+                echo json_encode(["error" => "Token không được để trống"]);
+            }
+        }
+        break;
+
+
+
     // ============================================================
     // SESSION MANAGEMENT ENDPOINTS
     // ============================================================
@@ -888,11 +1181,18 @@ switch ($action) {
         if ($method === 'POST') {
             $data = json_decode(file_get_contents('php://input'), true);
             $token = $data['token'] ?? '';
+            $userId = (int)($data['userId'] ?? 0);
             
             if (!empty($token)) {
                 // Xóa session
                 $stmt = $pdo->prepare("DELETE FROM Sessions WHERE Token = ?");
                 $stmt->execute([$token]);
+            }
+            
+            // ✅ Xóa UserTracking khi logout
+            if ($userId > 0) {
+                $stmt = $pdo->prepare("DELETE FROM UserTracking WHERE UserId = ?");
+                $stmt->execute([$userId]);
             }
             
             echo json_encode([

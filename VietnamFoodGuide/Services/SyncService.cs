@@ -114,6 +114,20 @@ namespace VietnamFoodGuide.Services
                     // Cập nhật SQLite với dữ liệu merged
                     _sqliteService.SyncFromAPI(mergedFoods);
 
+                    // BẮT ĐẦU: Tự động tải tất cả file audio mới về máy
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            System.Diagnostics.Debug.WriteLine("[SyncService] Bắt đầu tự động tải Audio files...");
+                            await AudioCacheService.Instance.DownloadAllAudioAsync(mergedFoods);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[SyncService] Lỗi khi tải Audio: {ex.Message}");
+                        }
+                    });
+
                     result.Success = true;
                     result.Message = $"Đồng bộ thành công {mergedFoods.Count} quán ăn";
                     result.ItemsUpdated = mergedFoods.Count;

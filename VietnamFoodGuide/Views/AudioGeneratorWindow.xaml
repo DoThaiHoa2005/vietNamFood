@@ -1,0 +1,167 @@
+<Window x:Class="VietnamFoodGuide.Views.AudioGeneratorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tạo File Audio Tự Động" 
+        Height="450" 
+        Width="600"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#F5F5F5">
+    
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0" 
+                   Text="🎵 Tạo File Audio MP3 Tự Động"
+                   FontSize="24"
+                   FontWeight="Bold"
+                   Foreground="#202124"
+                   Margin="0,0,0,20"/>
+
+        <!-- Info -->
+        <Border Grid.Row="1" 
+                Background="White"
+                CornerRadius="8"
+                Padding="15"
+                Margin="0,0,0,15">
+            <StackPanel>
+                <TextBlock Text="ℹ️ Thông Tin" 
+                           FontSize="16" 
+                           FontWeight="SemiBold" 
+                           Foreground="#202124"
+                           Margin="0,0,0,10"/>
+                <TextBlock TextWrapping="Wrap" 
+                           Foreground="#5f6368"
+                           LineHeight="22">
+                    Hệ thống sẽ tự động tạo file audio MP3 từ Description cho 3 ngôn ngữ (VI, EN, CN).
+                    File audio sẽ được lưu vào Assets/Audio và cập nhật vào database.
+                </TextBlock>
+                <TextBlock x:Name="TxtInfo" 
+                           Text="📁 Thư mục: Assets/Audio/"
+                           Foreground="#1a73e8"
+                           FontWeight="SemiBold"
+                           Margin="0,10,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Progress -->
+        <Border Grid.Row="2" 
+                Background="White"
+                CornerRadius="8"
+                Padding="15">
+            <StackPanel>
+                <TextBlock Text="📊 Tiến Trình" 
+                           FontSize="14" 
+                           FontWeight="SemiBold" 
+                           Foreground="#202124"
+                           Margin="0,0,0,10"/>
+                
+                <TextBlock x:Name="TxtProgress" 
+                           Text="Sẵn sàng tạo audio..."
+                           FontSize="13"
+                           Foreground="#5f6368"
+                           Margin="0,0,0,10"/>
+                
+                <ProgressBar x:Name="ProgressBar" 
+                             Height="10"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="0"
+                             Foreground="#34a853"
+                             Margin="0,0,0,10"/>
+                
+                <TextBlock x:Name="TxtStatus" 
+                           Text=""
+                           FontSize="12"
+                           Foreground="#5f6368"
+                           TextWrapping="Wrap"
+                           Height="150"
+                           VerticalAlignment="Top"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right"
+                    Margin="0,15,0,0">
+            <Button x:Name="BtnGenerate"
+                    Content="🎵 Tạo Audio"
+                    Width="140"
+                    Height="40"
+                    Background="#34a853"
+                    Foreground="White"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Margin="0,0,10,0"
+                    Click="BtnGenerate_Click">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}"
+                                            CornerRadius="8"
+                                            Padding="15,10">
+                                        <ContentPresenter HorizontalAlignment="Center" 
+                                                        VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2d8e47"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#CCCCCC"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <Button x:Name="BtnClose"
+                    Content="Đóng"
+                    Width="100"
+                    Height="40"
+                    Background="#5f6368"
+                    Foreground="White"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Click="BtnClose_Click">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}"
+                                            CornerRadius="8"
+                                            Padding="15,10">
+                                        <ContentPresenter HorizontalAlignment="Center" 
+                                                        VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#4a4f54"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

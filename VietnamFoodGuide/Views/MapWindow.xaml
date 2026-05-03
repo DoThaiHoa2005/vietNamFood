@@ -1,4 +1,4 @@
-<Window x:Class="VietnamFoodGuide.Views.MapWindow"
+﻿<Window x:Class="VietnamFoodGuide.Views.MapWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
@@ -6,7 +6,7 @@
         Height="780" Width="400"
         MinHeight="600" MinWidth="360"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BackgroundBrush}"
+        Background="{DynamicResource BackgroundBrush}"
         ResizeMode="CanResize"
         Icon="/Assets/Images/banner.png"
         KeyDown="Window_KeyDown">
@@ -53,15 +53,25 @@
         </Grid.RowDefinitions>
 
         <!-- ===== STATUS BAR ===== -->
-        <Border Grid.Row="0" Background="{StaticResource PrimaryBrush}">
+        <Border Grid.Row="0" Background="{DynamicResource PrimaryBrush}">
             <Grid Margin="16,0">
                 <Button x:Name="BtnBack" Content="← Quay lại" Click="Back_Click"
                         Background="Transparent" BorderThickness="0"
                         Foreground="White" FontSize="12" FontWeight="SemiBold"
-                        HorizontalAlignment="Left" VerticalAlignment="Center" Cursor="Hand"/>
-                <TextBlock x:Name="TxtMapTitle" Text="📍 Bản đồ vị trí" Foreground="White" FontSize="12"
-                           FontWeight="SemiBold" HorizontalAlignment="Center"
-                           VerticalAlignment="Center" Opacity="0.9"/>
+                        HorizontalAlignment="Left" VerticalAlignment="Center" Cursor="Hand"
+                        TextOptions.TextFormattingMode="Display"
+                        TextOptions.TextRenderingMode="ClearType"/>
+                <TextBlock x:Name="TxtMapTitle" Text="🗺 Bản đồ vị trí" Foreground="White" FontSize="13"
+                           FontWeight="Bold" HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextOptions.TextFormattingMode="Display"
+                           TextOptions.TextRenderingMode="ClearType"
+                           UseLayoutRounding="True"
+                           SnapsToDevicePixels="True">
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="Black" BlurRadius="2" Opacity="0.6" ShadowDepth="1"/>
+                    </TextBlock.Effect>
+                </TextBlock>
             </Grid>
         </Border>
 
@@ -78,19 +88,27 @@
 
                 <!-- Food Info -->
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock x:Name="TxtName" FontSize="18" FontWeight="ExtraBold"
-                               Foreground="{StaticResource TextPrimaryBrush}"
-                               TextTrimming="CharacterEllipsis" MaxHeight="26"/>
+                    <TextBlock x:Name="TxtName" FontSize="20" FontWeight="Black"
+                               Foreground="#1D3557"
+                               TextTrimming="CharacterEllipsis" MaxHeight="28"
+                               TextOptions.TextFormattingMode="Display"
+                               TextOptions.TextRenderingMode="ClearType"
+                               UseLayoutRounding="True"
+                               SnapsToDevicePixels="True"/>
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Text="📍" FontSize="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="TxtCity" FontSize="13"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="📍" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtCity" FontSize="14"
+                                   Foreground="#555555" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   TextOptions.TextFormattingMode="Display"
+                                   TextOptions.TextRenderingMode="ClearType"
+                                   UseLayoutRounding="True"
+                                   SnapsToDevicePixels="True"/>
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Star Rating -->
-                <Border Grid.Column="1" Background="{StaticResource BackgroundBrush}"
+                <Border Grid.Column="1" Background="{DynamicResource BackgroundBrush}"
                         CornerRadius="12" Padding="10,6" VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center">
                         <ItemsControl x:Name="StarRating" Focusable="False">
@@ -101,13 +119,13 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="★" Foreground="{StaticResource AccentBrush}"
+                                    <TextBlock Text="★" Foreground="{DynamicResource AccentBrush}"
                                                FontSize="16" Margin="0,0,1,0"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                         <TextBlock x:Name="TxtRatingCount" FontSize="11"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    HorizontalAlignment="Center" Margin="0,2,0,0"/>
                     </StackPanel>
                 </Border>
@@ -162,7 +180,7 @@
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                     <TextBlock Text="🗺️" FontSize="48" HorizontalAlignment="Center"/>
                     <TextBlock x:Name="TxtLoadingMap" Text="Đang tải bản đồ..." FontSize="14"
-                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
                                HorizontalAlignment="Center" Margin="0,12,0,0"/>
                 </StackPanel>
             </Border>

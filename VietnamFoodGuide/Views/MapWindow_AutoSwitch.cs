@@ -1,4 +1,4 @@
-// File này chứa code HTML cho bản đồ tự động chuyển đổi online/offline
+﻿// File này chứa code HTML cho bản đồ tự động chuyển đổi online/offline
 // Copy nội dung method BuildMapHtml này vào MapWindow.xaml.cs để thay thế method cũ
 
 /*

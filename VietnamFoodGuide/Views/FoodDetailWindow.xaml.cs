@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
@@ -17,6 +17,9 @@ namespace VietnamFoodGuide.Views
         public FoodDetailWindow(FoodItem selectedFood)
         {
             InitializeComponent();
+            
+            // Apply current theme (dark/light)
+            ThemeService.Instance.ApplyTheme();
 
             _food = selectedFood ?? throw new ArgumentNullException(nameof(selectedFood));
 
@@ -27,10 +30,18 @@ namespace VietnamFoodGuide.Views
             // Set description based on current language
             UpdateDescription();
 
+            // Set image using converter
             if (!string.IsNullOrEmpty(_food.Image))
             {
-                try { FoodImage.Source = new BitmapImage(new Uri(_food.Image, UriKind.RelativeOrAbsolute)); }
-                catch { }
+                try 
+                { 
+                    var converter = new Converters.StringToImageSourceConverter();
+                    FoodImage.Source = converter.Convert(_food.Image, typeof(BitmapImage), null, System.Globalization.CultureInfo.CurrentCulture) as BitmapImage;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[FoodDetailWindow] Error loading image: {ex.Message}");
+                }
             }
 
             // Load favorite status
@@ -43,6 +54,12 @@ namespace VietnamFoodGuide.Views
             GoogleTranslateSpeechService.Instance.OnSpeechStarted += OnSpeechStarted;
             GoogleTranslateSpeechService.Instance.OnSpeechCompleted += OnSpeechCompleted;
             GoogleTranslateSpeechService.Instance.OnSpeechError += OnSpeechError;
+            
+            // ✅ Đăng ký events cho AudioCacheService (phát audio offline)
+            AudioCacheService.Instance.OnPlaybackStarted += OnAudioPlaybackStarted;
+            AudioCacheService.Instance.OnPlaybackCompleted += OnAudioPlaybackCompleted;
+            AudioCacheService.Instance.OnPlaybackError += OnAudioPlaybackError;
+            AudioCacheService.Instance.OnPlaybackProgress += OnAudioPlaybackProgress;
             
             BtnSpeak.IsEnabled = true; // Luôn sẵn sàng
             System.Diagnostics.Debug.WriteLine("✅ [FoodDetail] GoogleTranslateSpeechService sẵn sàng ngay lập tức");
@@ -130,8 +147,71 @@ namespace VietnamFoodGuide.Views
                     {
                         statusText.Text = _lang["playing_narration"];
                     }
+                    // Ẩn thời gian khi dùng TTS (không có thời gian cụ thể)
+                    var playbackTime = SpeechStatusBar.FindName("PlaybackTime") as TextBlock;
+                    if (playbackTime != null)
+                    {
+                        playbackTime.Visibility = Visibility.Collapsed;
+                    }
                 }
                 BtnSpeak.IsEnabled = false;
+            });
+        }
+        
+        private void OnAudioPlaybackStarted()
+        {
+            Dispatcher.Invoke(() => {
+                BtnStop.Visibility = Visibility.Visible;
+                if (StopPlaceholder != null) StopPlaceholder.Visibility = Visibility.Collapsed;
+                if (SpeechStatusBar != null)
+                {
+                    SpeechStatusBar.Visibility = Visibility.Visible;
+                    var statusText = SpeechStatusBar.FindName("StatusText") as TextBlock;
+                    if (statusText != null)
+                    {
+                        statusText.Text = _lang["playing_narration"];
+                    }
+                    // Hiển thị thời gian khi phát audio file
+                    var playbackTime = SpeechStatusBar.FindName("PlaybackTime") as TextBlock;
+                    if (playbackTime != null)
+                    {
+                        playbackTime.Visibility = Visibility.Visible;
+                        playbackTime.Text = "0s";
+                    }
+                }
+                BtnSpeak.IsEnabled = false;
+            });
+        }
+        
+        private void OnAudioPlaybackProgress(TimeSpan current, TimeSpan total)
+        {
+            Dispatcher.Invoke(() => {
+                var playbackTime = SpeechStatusBar?.FindName("PlaybackTime") as TextBlock;
+                if (playbackTime != null)
+                {
+                    playbackTime.Text = $"{(int)current.TotalSeconds}s";
+                }
+            });
+        }
+        
+        private void OnAudioPlaybackCompleted()
+        {
+            Dispatcher.Invoke(() => {
+                BtnStop.Visibility = Visibility.Collapsed;
+                if (StopPlaceholder != null) StopPlaceholder.Visibility = Visibility.Visible;
+                if (SpeechStatusBar != null) SpeechStatusBar.Visibility = Visibility.Collapsed;
+                BtnSpeak.IsEnabled = true;
+            });
+        }
+        
+        private void OnAudioPlaybackError(string error)
+        {
+            Dispatcher.Invoke(() => {
+                BtnStop.Visibility = Visibility.Collapsed;
+                if (StopPlaceholder != null) StopPlaceholder.Visibility = Visibility.Visible;
+                if (SpeechStatusBar != null) SpeechStatusBar.Visibility = Visibility.Collapsed;
+                BtnSpeak.IsEnabled = true;
+                MessageBox.Show($"Lỗi phát audio: {error}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Warning);
             });
         }
         
@@ -152,7 +232,7 @@ namespace VietnamFoodGuide.Views
                 if (StopPlaceholder != null) StopPlaceholder.Visibility = Visibility.Visible;
                 if (SpeechStatusBar != null) SpeechStatusBar.Visibility = Visibility.Collapsed;
                 BtnSpeak.IsEnabled = true;
-                MessageDialog.ShowWarning($"Lỗi: {error}", "Lỗi");
+                MessageBox.Show($"Lỗi: {error}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Warning);
             });
         }
         
@@ -163,6 +243,11 @@ namespace VietnamFoodGuide.Views
             GoogleTranslateSpeechService.Instance.OnSpeechCompleted -= OnSpeechCompleted;
             GoogleTranslateSpeechService.Instance.OnSpeechError -= OnSpeechError;
             
+            AudioCacheService.Instance.OnPlaybackStarted -= OnAudioPlaybackStarted;
+            AudioCacheService.Instance.OnPlaybackCompleted -= OnAudioPlaybackCompleted;
+            AudioCacheService.Instance.OnPlaybackError -= OnAudioPlaybackError;
+            AudioCacheService.Instance.OnPlaybackProgress -= OnAudioPlaybackProgress;
+            
             base.OnClosed(e);
         }
 
@@ -170,20 +255,33 @@ namespace VietnamFoodGuide.Views
         {
             try
             {
+                // OFFLINE-FIRST: Luôn load từ local storage trước để UI phản hồi ngay lập tức
+                _food.IsFavorite = _storageService.IsFavorite(_food.Name);
+                UpdateFavoriteButton();
+
                 if (App.CurrentApiUser != null)
                 {
-                    _food.IsFavorite = await _favoritesApiService.IsFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
+                    bool isOnline = await NetworkService.IsInternetAvailableAsync();
+                    if (isOnline)
+                    {
+                        // Kiểm tra với server xem trạng thái thực tế
+                        bool isFavOnServer = await _favoritesApiService.IsFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
+                        
+                        // Nếu server khác với local (VD: user đăng nhập thiết bị khác) -> Sync
+                        if (isFavOnServer != _food.IsFavorite)
+                        {
+                            _food.IsFavorite = isFavOnServer;
+                            if (isFavOnServer) _storageService.AddFavorite(_food);
+                            else _storageService.RemoveFavorite(_food.Name);
+                            UpdateFavoriteButton();
+                        }
+                    }
                 }
-                else
-                {
-                    _food.IsFavorite = _storageService.IsFavorite(_food.Name);
-                }
-                UpdateFavoriteButton();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[LoadFavoriteStatus] Error: {ex.Message}");
-                _food.IsFavorite = _storageService.IsFavorite(_food.Name);
+                // Giữ nguyên trạng thái local nếu có lỗi
                 UpdateFavoriteButton();
             }
         }
@@ -221,17 +319,40 @@ namespace VietnamFoodGuide.Views
                         return;
                     }
                     
+                    bool isOnline = await NetworkService.IsInternetAvailableAsync();
+                    
                     if (_food.IsFavorite)
                     {
-                        var result = await _favoritesApiService.RemoveFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
-                        if (result.success) _food.IsFavorite = false;
-                        else MessageDialog.ShowError($"{_lang["error"]}: {result.message}", _lang["error"]);
+                        // Xóa (Offline-First: Cập nhật local trước)
+                        _storageService.RemoveFavorite(_food.Name);
+                        _food.IsFavorite = false;
+                        
+                        if (isOnline)
+                        {
+                            _ = _favoritesApiService.RemoveFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
+                        }
                     }
                     else
                     {
-                        var result = await _favoritesApiService.AddFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
-                        if (result.success) _food.IsFavorite = true;
-                        else MessageDialog.ShowError($"{_lang["error"]}: {result.message}", _lang["error"]);
+                        // Thêm (Offline-First: Cập nhật local trước)
+                        _storageService.AddFavorite(_food);
+                        _food.IsFavorite = true;
+                        
+                        if (isOnline)
+                        {
+                            var result = await _favoritesApiService.AddFavoriteAsync(App.CurrentApiUser.Id, _food.Id);
+                            if (result.success)
+                            {
+                                var sqliteFavorites = new SQLiteFavoritesService();
+                                sqliteFavorites.MarkAsSynced(App.CurrentApiUser.Id, _food.Id);
+                            }
+                        }
+                    }
+                    
+                    // Kích hoạt sync background
+                    if (isOnline)
+                    {
+                        _ = BackgroundSyncService.Instance.SyncNowAsync();
                     }
                 }
                 else
@@ -275,19 +396,49 @@ namespace VietnamFoodGuide.Views
             this.Close();
         }
 
-        private void SpeakVI(object sender, RoutedEventArgs e)
+        private async void SpeakVI(object sender, RoutedEventArgs e)
         {
             string textToSpeak = GetDescription();
             string langCode = GetLanguageCode();
+            string lang = _lang.CurrentLanguage; // vi, en, zh
 
             FoodDescription.Text = textToSpeak;
             
-            // Gọi GoogleTranslateSpeechService (giọng nói chuẩn từ Google Translate)
-            GoogleTranslateSpeechService.Instance.Speak(textToSpeak, langCode);
+            // Kiểm tra kết nối mạng
+            bool isOnline = await NetworkService.IsInternetAvailableAsync();
+            
+            if (isOnline)
+            {
+                // ✅ Có mạng → Ưu tiên dùng Google TTS (giọng tự nhiên hơn)
+                System.Diagnostics.Debug.WriteLine($"🌐 [FoodDetail] Online - Using Google TTS ({langCode})");
+                GoogleTranslateSpeechService.Instance.Speak(textToSpeak, langCode);
+            }
+            else
+            {
+                // ❌ Không có mạng → Dùng file audio local và hiển thị thời gian phát
+                System.Diagnostics.Debug.WriteLine($"📴 [FoodDetail] Offline - Using cached audio ({lang})");
+                
+                var audioCacheService = AudioCacheService.Instance;
+                if (audioCacheService.HasAudioForLanguage(_food, lang))
+                {
+                    bool played = await audioCacheService.PlayAudioAsync(_food, lang);
+                    if (played)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"✅ [FoodDetail] Playing cached audio for Food {_food.Id} ({lang})");
+                        return;
+                    }
+                }
+                
+                // Fallback: Không có file audio và không có mạng
+                System.Diagnostics.Debug.WriteLine($"⚠️ [FoodDetail] No cached audio and offline - Cannot play");
+                MessageBox.Show("Không có kết nối mạng và chưa có file audio offline.", "Không Thể Phát", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private void StopSpeak(object sender, RoutedEventArgs e)
         {
+            // Dừng cả 2 nguồn phát
+            AudioCacheService.Instance.Stop();
             GoogleTranslateSpeechService.Instance.Stop();
         }
 

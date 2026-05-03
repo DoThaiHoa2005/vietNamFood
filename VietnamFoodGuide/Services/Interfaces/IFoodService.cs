@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using VietnamFoodGuide.Models;
 
 namespace VietnamFoodGuide.Services.Interfaces

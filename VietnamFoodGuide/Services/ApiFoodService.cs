@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
@@ -122,8 +122,9 @@ namespace VietnamFoodGuide.Services
                     // Map new fields for Geofence & Narration
                     Radius = apiFood.Radius,
                     Priority = apiFood.Priority,
-                    AudioUrl = apiFood.AudioUrl,
-                    NarrationScript = apiFood.NarrationScript,
+                    AudioUrl_VI = apiFood.AudioUrl_VI,
+                    AudioUrl_EN = apiFood.AudioUrl_EN,
+                    AudioUrl_CN = apiFood.AudioUrl_CN,
                     CooldownMinutes = apiFood.CooldownMinutes
                 });
             }
@@ -148,8 +149,9 @@ namespace VietnamFoodGuide.Services
             // New fields for Geofence & Narration
             public double Radius { get; set; }
             public int Priority { get; set; }
-            public string AudioUrl { get; set; }
-            public string NarrationScript { get; set; }
+            public string AudioUrl_VI { get; set; }
+            public string AudioUrl_EN { get; set; }
+            public string AudioUrl_CN { get; set; }
             public int CooldownMinutes { get; set; }
         }
     }

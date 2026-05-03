@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace VietnamFoodGuide.Models
@@ -34,16 +34,20 @@ namespace VietnamFoodGuide.Models
         public int Priority { get; set; } = 5; // Mặc định mức trung bình
 
         /// <summary>
-        /// URL hoặc đường dẫn file audio có sẵn (.mp3, .wav)
+        /// URL file audio thuyết minh tiếng Việt (.mp3)
         /// Nếu có, ưu tiên phát file audio thay vì TTS
         /// </summary>
-        public string AudioUrl { get; set; }
+        public string AudioUrl_VI { get; set; }
 
         /// <summary>
-        /// Script thuyết minh riêng (có thể khác với Description)
-        /// Dùng cho TTS khi không có AudioUrl
+        /// URL file audio thuyết minh tiếng Anh (.mp3)
         /// </summary>
-        public string NarrationScript { get; set; }
+        public string AudioUrl_EN { get; set; }
+
+        /// <summary>
+        /// URL file audio thuyết minh tiếng Trung (.mp3)
+        /// </summary>
+        public string AudioUrl_CN { get; set; }
 
         /// <summary>
         /// Thời gian chờ trước khi phát lại (đơn vị: phút)

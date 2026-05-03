@@ -42,7 +42,7 @@ namespace VietnamFoodGuide
 
             // ✅ KHÔNG khởi tạo Entity Framework Database nữa
             // Chỉ dùng SQLite cho tất cả
-            System.Diagnostics.Debug.WriteLine("[App] Starting app without Entity Framework database");
+            System.Diagnostics.Debug.WriteLine("[App] Starting app with Offline-First architecture");
 
             // Show Login Window first
             LoginWindow loginWindow = new LoginWindow(null); // Pass null vì không dùng DbContext

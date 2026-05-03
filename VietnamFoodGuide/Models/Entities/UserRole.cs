@@ -1,4 +1,4 @@
-namespace VietnamFoodGuide.Models.Entities
+﻿namespace VietnamFoodGuide.Models.Entities
 {
     public enum UserRole
     {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -188,6 +188,167 @@ namespace VietnamFoodGuide.Services
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Error clearing cache: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Get size of offline tiles in MB
+        /// </summary>
+        public double GetOfflineTilesSize()
+        {
+            try
+            {
+                string tilesDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "MapTiles");
+                if (!Directory.Exists(tilesDir))
+                    return 0;
+
+                var dirInfo = new DirectoryInfo(tilesDir);
+                long totalBytes = dirInfo.GetFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
+                return totalBytes / (1024.0 * 1024.0); // Convert to MB
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error getting tiles size: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Download map tiles for Vinh Khanh area
+        /// </summary>
+        public void DownloadVinhKhanhArea(Action<int, string> progressCallback)
+        {
+            try
+            {
+                progressCallback?.Invoke(0, "Bắt đầu tải bản đồ...");
+
+                // Vinh Khanh coordinates
+                double centerLat = 10.78024;
+                double centerLon = 106.70532;
+                int[] zoomLevels = { 13, 14, 15, 16, 17 };
+
+                string tilesDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "MapTiles");
+                if (!Directory.Exists(tilesDir))
+                    Directory.CreateDirectory(tilesDir);
+
+                int totalTiles = 0;
+                int downloadedTiles = 0;
+
+                // Calculate total tiles
+                foreach (int zoom in zoomLevels)
+                {
+                    var tiles = GetTilesForArea(centerLat, centerLon, zoom, 0.02);
+                    totalTiles += tiles.Count;
+                }
+
+                progressCallback?.Invoke(0, $"Tổng số tiles: {totalTiles}");
+
+                // Download tiles
+                using (var client = new System.Net.WebClient())
+                {
+                    foreach (int zoom in zoomLevels)
+                    {
+                        var tiles = GetTilesForArea(centerLat, centerLon, zoom, 0.02);
+
+                        foreach (var tile in tiles)
+                        {
+                            string tileDir = Path.Combine(tilesDir, zoom.ToString(), tile.X.ToString());
+                            if (!Directory.Exists(tileDir))
+                                Directory.CreateDirectory(tileDir);
+
+                            string tilePath = Path.Combine(tileDir, $"{tile.Y}.png");
+
+                            if (!File.Exists(tilePath))
+                            {
+                                try
+                                {
+                                    string url = $"https://tile.openstreetmap.org/{zoom}/{tile.X}/{tile.Y}.png";
+                                    client.Headers.Add("User-Agent", "VietnamFoodGuide/1.0");
+                                    client.DownloadFile(url, tilePath);
+                                    System.Threading.Thread.Sleep(100); // Rate limiting
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"❌ Error downloading tile {zoom}/{tile.X}/{tile.Y}: {ex.Message}");
+                                }
+                            }
+
+                            downloadedTiles++;
+                            int progress = (int)((downloadedTiles / (double)totalTiles) * 100);
+                            progressCallback?.Invoke(progress, $"Đã tải: {downloadedTiles}/{totalTiles} tiles");
+                        }
+                    }
+                }
+
+                progressCallback?.Invoke(100, "Hoàn thành!");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error downloading Vinh Khanh area: {ex.Message}");
+                progressCallback?.Invoke(0, $"Lỗi: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Clear offline tiles
+        /// </summary>
+        public void ClearOfflineTiles()
+        {
+            try
+            {
+                string tilesDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "MapTiles");
+                if (Directory.Exists(tilesDir))
+                {
+                    Directory.Delete(tilesDir, true);
+                    System.Diagnostics.Debug.WriteLine("✅ Offline tiles cleared");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error clearing tiles: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Get tiles for a specific area
+        /// </summary>
+        private List<TileCoordinate> GetTilesForArea(double lat, double lon, int zoom, double radiusDegrees)
+        {
+            var tiles = new List<TileCoordinate>();
+
+            double minLat = lat - radiusDegrees;
+            double maxLat = lat + radiusDegrees;
+            double minLon = lon - radiusDegrees;
+            double maxLon = lon + radiusDegrees;
+
+            var minTile = LatLonToTile(minLat, minLon, zoom);
+            var maxTile = LatLonToTile(maxLat, maxLon, zoom);
+
+            for (int x = Math.Min(minTile.X, maxTile.X); x <= Math.Max(minTile.X, maxTile.X); x++)
+            {
+                for (int y = Math.Min(minTile.Y, maxTile.Y); y <= Math.Max(minTile.Y, maxTile.Y); y++)
+                {
+                    tiles.Add(new TileCoordinate { X = x, Y = y });
+                }
+            }
+
+            return tiles;
+        }
+
+        /// <summary>
+        /// Convert lat/lon to tile coordinates
+        /// </summary>
+        private TileCoordinate LatLonToTile(double lat, double lon, int zoom)
+        {
+            int n = 1 << zoom;
+            int x = (int)((lon + 180.0) / 360.0 * n);
+            int y = (int)((1.0 - Math.Log(Math.Tan(lat * Math.PI / 180.0) + 1.0 / Math.Cos(lat * Math.PI / 180.0)) / Math.PI) / 2.0 * n);
+            return new TileCoordinate { X = x, Y = y };
+        }
+
+        private class TileCoordinate
+        {
+            public int X { get; set; }
+            public int Y { get; set; }
         }
     }
 

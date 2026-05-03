@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace VietnamFoodGuide.Services
 {
@@ -14,8 +14,11 @@ namespace VietnamFoodGuide.Services
         // OPTION 1: Dùng Ngrok (cho remote access)
         // public static readonly string Domain = "https://bridged-shindig-feminize.ngrok-free.dev/vfg-api";
         
-        // OPTION 2: Dùng Localhost (cho local testing - không cần ngrok)
-        public static readonly string Domain = "http://localhost/vfg-api";
+        // OPTION 2: Dùng IP LAN (cho local network - các thiết bị trong mạng)
+        public static readonly string Domain = "http://192.168.1.112/vfg-api";
+        
+        // OPTION 3: Dùng Localhost (chỉ máy local)
+        // public static readonly string Domain = "http://localhost/vfg-api";
 
         // 2. ĐƯỜNG DẪN API (Tự động tạo dựa trên Domain)
         public static string ApiBaseUrl => $"{Domain}/api.php";

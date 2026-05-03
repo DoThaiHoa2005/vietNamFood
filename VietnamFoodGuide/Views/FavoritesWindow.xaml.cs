@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using VietnamFoodGuide.Models;
 using VietnamFoodGuide.Services;
@@ -15,7 +15,15 @@ namespace VietnamFoodGuide.Views
         {
             InitializeComponent();
             InitializeLanguage();
-            LoadFavorites();
+            
+            // Apply current theme (dark/light)
+            ThemeService.Instance.ApplyTheme();
+            
+            // ✅ Set favorites after window is loaded
+            this.Loaded += (s, e) => 
+            {
+                LoadFavorites();
+            };
             
             // Subscribe to language changes
             lang.LanguageChanged += (s, e) => UpdateUILanguage();
@@ -64,21 +72,35 @@ namespace VietnamFoodGuide.Views
             {
                 var favorites = new System.Collections.Generic.List<FoodItem>();
 
+                // OFFLINE-FIRST: Luôn load từ local storage trước
+                favorites = storageService.GetFavorites();
+                
                 if (App.CurrentApiUser != null)
                 {
-                    // Load từ API
-                    favorites = await _favoritesApiService.GetUserFavoritesAsync(App.CurrentApiUser.Id);
-                }
-                else
-                {
-                    // Fallback to local storage
-                    favorites = storageService.GetFavorites();
+                    bool isOnline = await NetworkService.IsInternetAvailableAsync();
+                    if (isOnline)
+                    {
+                        var serverFavorites = await _favoritesApiService.GetUserFavoritesAsync(App.CurrentApiUser.Id);
+                        if (serverFavorites != null && serverFavorites.Count > 0)
+                        {
+                            // Sync từ server về local
+                            var sqliteFavorites = new SQLiteFavoritesService();
+                            sqliteFavorites.SyncFromServer(App.CurrentApiUser.Id, serverFavorites);
+                            favorites = serverFavorites; // Cập nhật UI với data mới nhất
+                        }
+                    }
                 }
 
-                // Set ViewDetailsText for all items
+                // ✅ SET IMAGE PATH TRỰC TIẾP TRONG CODE-BEHIND
                 foreach (var food in favorites)
                 {
-                    food.ViewDetailsText = lang["view_details"];
+                    // Đảm bảo Image property có giá trị
+                    if (string.IsNullOrEmpty(food.Image))
+                    {
+                        food.Image = "Assets/Images/placeholder.png";
+                    }
+                    
+                    System.Diagnostics.Debug.WriteLine($"[FavoritesWindow] Food: {food.Name}, Image: {food.Image}");
                 }
 
                 FavoritesList.ItemsSource = favorites;
@@ -106,32 +128,8 @@ namespace VietnamFoodGuide.Views
                 System.Diagnostics.Debug.WriteLine($"Error loading favorites: {ex.Message}");
                 // Fallback to local storage
                 var favorites = storageService.GetFavorites();
-                
-                // Set ViewDetailsText for all items
-                foreach (var food in favorites)
-                {
-                    food.ViewDetailsText = lang["view_details"];
-                }
-                
                 FavoritesList.ItemsSource = favorites;
-                
-                // Update count text based on language
-                string countText = "";
-                if (lang.CurrentLanguage == "vi")
-                {
-                    countText = $"{favorites.Count} món ăn";
-                }
-                else if (lang.CurrentLanguage == "en")
-                {
-                    countText = $"{favorites.Count} item{(favorites.Count != 1 ? "s" : "")}";
-                }
-                else // zh
-                {
-                    countText = $"{favorites.Count} 项";
-                }
-                CountTxt.Text = countText;
-                
-                EmptyState.Visibility = favorites.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                EmptyState.Visibility = Visibility.Visible;
             }
         }
 
@@ -158,5 +156,6 @@ namespace VietnamFoodGuide.Views
                            lang.CurrentLanguage == "en" ? "Loading..." : "加载中...";
             LoadFavorites();
         }
+
     }
 }

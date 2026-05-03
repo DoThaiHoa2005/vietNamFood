@@ -1,0 +1,20 @@
+﻿VietnamFoodGuide
+1.0.0.0
+
+winexe
+C#
+.cs
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\obj\Release\net48\
+VietnamFoodGuide
+none
+false
+TRACE;RELEASE;NETFRAMEWORK;NET48;NET30_OR_GREATER;NET35_OR_GREATER;NET40_OR_GREATER;NET45_OR_GREATER;NET451_OR_GREATER;NET452_OR_GREATER;NET46_OR_GREATER;NET461_OR_GREATER;NET462_OR_GREATER;NET47_OR_GREATER;NET471_OR_GREATER;NET472_OR_GREATER;NET48_OR_GREATER
+E:\IT\C#\Đồ án c#\VietnamFoodGuide\VietnamFoodGuide\App.xaml
+13-1882650146
+1-677205251
+58-1768744339
+85-1411841959
+Views\AccountDialog.xaml;Views\AudioGeneratorLauncher.xaml;Views\AudioGeneratorWindow.xaml;Views\ConfirmDialog.xaml;Views\FavoritesWindow.xaml;Views\FoodDetailWindow.xaml;Views\LoginWindow.xaml;Views\MainWindow.xaml;Views\MapWindow.xaml;Views\MessageDialog.xaml;Views\OfflineMapDownloadWindow.xaml;Views\QRScannerWindow.xaml;Views\RegisterWindow.xaml;
+
+True
+

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -96,53 +96,8 @@ namespace VietnamFoodGuide.Views
 
             try
             {
-                // ✅ OFFLINE-FIRST: Thử đăng nhập bằng SQLite trước
-                Debug.WriteLine("[Login] Trying offline login with SQLite...");
-                var offlineUser = _sqliteUserService.Login(username, password);
-
-                if (offlineUser != null)
-                {
-                    // ✅ Đăng nhập offline thành công
-                    Debug.WriteLine($"[Login] Offline login successful for user: {offlineUser.Username}");
-                    ShowSuccess($"Chào mừng {offlineUser.Username}! (Offline)");
-                    
-                    // Lưu thông tin nếu chọn "Ghi nhớ"
-                    if (RememberMeCheckBox.IsChecked == true)
-                    {
-                        SaveCredentials(username, password);
-                    }
-                    else
-                    {
-                        ClearSavedCredentials();
-                    }
-                    
-                    // Lưu thông tin user (offline mode)
-                    App.CurrentApiUser = offlineUser;
-                    App.SessionToken = null; // Không có token khi offline
-                    App.SessionExpiresAt = null;
-                    App.DbContext = _dbContext;
-
-                    // Đợi 1 giây để user thấy thông báo
-                    await System.Threading.Tasks.Task.Delay(1000);
-
-                    // Kiểm tra role
-                    if (offlineUser.IsAdmin)
-                    {
-                        // Admin → Mở web admin dashboard
-                        OpenAdminDashboard();
-                    }
-                    else
-                    {
-                        // User → Mở MainWindow
-                        MainWindow mainWindow = new MainWindow();
-                        mainWindow.Show();
-                        this.Close();
-                    }
-                    return;
-                }
-
-                // ❌ Offline login failed, thử online login
-                Debug.WriteLine("[Login] Offline login failed, trying online login...");
+                // ✅ ONLINE-FIRST: Thử đăng nhập bằng API trước
+                Debug.WriteLine("[Login] Trying online login with API...");
                 
                 try
                 {
@@ -173,6 +128,9 @@ namespace VietnamFoodGuide.Views
                         // Bắt đầu cập nhật activity mỗi 30 giây
                         StartActivityTimer();
 
+                        // 🎵 Download audio files từ server
+                        await DownloadAudioFilesAsync();
+
                         // Đợi 1 giây để user thấy thông báo
                         await System.Threading.Tasks.Task.Delay(1000);
 
@@ -189,10 +147,13 @@ namespace VietnamFoodGuide.Views
                             mainWindow.Show();
                             this.Close();
                         }
+                        return;
                     }
                     else
                     {
-                        // ❌ Online login cũng thất bại
+                        // ❌ Online login thất bại (sai password hoặc user không tồn tại)
+                        Debug.WriteLine($"[Login] Online login failed: {errorMessage}");
+                        // Không fallback sang offline nếu sai password
                         ShowError(errorMessage ?? "Tài khoản hoặc mật khẩu sai");
                         if (PasswordBox.Visibility == Visibility.Visible)
                         {
@@ -202,20 +163,69 @@ namespace VietnamFoodGuide.Views
                         {
                             PasswordTextBox.Clear();
                         }
+                        return;
                     }
                 }
                 catch (Exception onlineEx)
                 {
-                    // ❌ Không thể kết nối online
+                    // ❌ Không thể kết nối online (network error, server down, etc.)
                     Debug.WriteLine($"[Login] Online login error: {onlineEx.Message}");
-                    ShowError("Không thể đăng nhập. Vui lòng kiểm tra tài khoản và mật khẩu.");
-                    if (PasswordBox.Visibility == Visibility.Visible)
+                    Debug.WriteLine("[Login] Falling back to offline login...");
+                    
+                    // FALLBACK: Thử đăng nhập offline
+                    var offlineUser = _sqliteUserService.Login(username, password);
+
+                    if (offlineUser != null)
                     {
-                        PasswordBox.Clear();
+                        // ✅ Đăng nhập offline thành công
+                        Debug.WriteLine($"[Login] Offline login successful for user: {offlineUser.Username}");
+                        ShowSuccess($"Chào mừng {offlineUser.Username}! (Offline)");
+                        
+                        // Lưu thông tin nếu chọn "Ghi nhớ"
+                        if (RememberMeCheckBox.IsChecked == true)
+                        {
+                            SaveCredentials(username, password);
+                        }
+                        else
+                        {
+                            ClearSavedCredentials();
+                        }
+                        
+                        // Lưu thông tin user (offline mode)
+                        App.CurrentApiUser = offlineUser;
+                        App.SessionToken = null; // Không có token khi offline
+                        App.SessionExpiresAt = null;
+                        App.DbContext = _dbContext;
+
+                        // Đợi 1 giây để user thấy thông báo
+                        await System.Threading.Tasks.Task.Delay(1000);
+
+                        // Kiểm tra role
+                        if (offlineUser.IsAdmin)
+                        {
+                            // Admin → Mở web admin dashboard
+                            OpenAdminDashboard();
+                        }
+                        else
+                        {
+                            // User → Mở MainWindow
+                            MainWindow mainWindow = new MainWindow();
+                            mainWindow.Show();
+                            this.Close();
+                        }
                     }
                     else
                     {
-                        PasswordTextBox.Clear();
+                        // ❌ Cả online và offline đều thất bại
+                        ShowError("Không thể đăng nhập. Vui lòng kiểm tra tài khoản và mật khẩu.");
+                        if (PasswordBox.Visibility == Visibility.Visible)
+                        {
+                            PasswordBox.Clear();
+                        }
+                        else
+                        {
+                            PasswordTextBox.Clear();
+                        }
                     }
                 }
             }
@@ -451,6 +461,55 @@ namespace VietnamFoodGuide.Views
 
             _activityTimer.Start();
             System.Diagnostics.Debug.WriteLine("[Activity] Timer started - will update every 30 seconds");
+        }
+
+        /// <summary>
+        /// Download audio files từ server sau khi đăng nhập
+        /// </summary>
+        private async System.Threading.Tasks.Task DownloadAudioFilesAsync()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🎵 [Login] Bắt đầu download audio files...");
+                
+                var audioService = new VietnamFoodGuide.Services.AudioDownloadService();
+                
+                // Download audio trong background (không block UI)
+                _ = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    var result = await audioService.DownloadAllAudioAsync((current, total, message) =>
+                    {
+                        System.Diagnostics.Debug.WriteLine($"🎵 [AudioDownload] {message}");
+                    });
+                    
+                    if (result.IsSuccess)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"✅ [AudioDownload] {result.Message}");
+                        
+                        // Hiển thị thông báo nếu có file mới
+                        if (result.DownloadedCount > 0)
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                System.Windows.MessageBox.Show(
+                                    $"Đã tải xuống {result.DownloadedCount} file audio mới!",
+                                    "Audio Downloaded",
+                                    System.Windows.MessageBoxButton.OK,
+                                    System.Windows.MessageBoxImage.Information
+                                );
+                            });
+                        }
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"⚠️ [AudioDownload] {result.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ [AudioDownload] Error: {ex.Message}");
+            }
         }
     }
 }
