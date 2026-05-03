@@ -1,0 +1,214 @@
+﻿<Window x:Class="VietnamFoodGuide.Views.OfflineMapDownloadWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tải Bản Đồ Offline" 
+        Height="400" 
+        Width="500"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#F5F5F5">
+    
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0" 
+                   Text="📥 Tải Bản Đồ Offline"
+                   FontSize="24"
+                   FontWeight="Bold"
+                   Foreground="#202124"
+                   Margin="0,0,0,20"/>
+
+        <!-- Info -->
+        <Border Grid.Row="1" 
+                Background="White"
+                CornerRadius="8"
+                Padding="15"
+                Margin="0,0,0,15">
+            <StackPanel>
+                <TextBlock Text="ℹ️ Thông Tin" 
+                           FontSize="16" 
+                           FontWeight="SemiBold" 
+                           Foreground="#202124"
+                           Margin="0,0,0,10"/>
+                <TextBlock TextWrapping="Wrap" 
+                           Foreground="#5f6368"
+                           LineHeight="22">
+                    Tải bản đồ offline cho khu vực Vĩnh Khánh để sử dụng khi không có mạng. 
+                    Bản đồ sẽ hiển thị đường xá, tên địa điểm giống Google Maps.
+                </TextBlock>
+                <TextBlock x:Name="TxtSize" 
+                           Text="Kích thước: ~50-100 MB"
+                           Foreground="#1a73e8"
+                           FontWeight="SemiBold"
+                           Margin="0,10,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Progress -->
+        <Border Grid.Row="2" 
+                Background="White"
+                CornerRadius="8"
+                Padding="15"
+                Margin="0,0,0,15"
+                x:Name="ProgressPanel"
+                Visibility="Collapsed">
+            <StackPanel>
+                <TextBlock x:Name="TxtProgress" 
+                           Text="Đang tải... 0%"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="#202124"
+                           Margin="0,0,0,10"/>
+                <ProgressBar x:Name="ProgressBar" 
+                             Height="8"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="0"
+                             Foreground="#34a853"/>
+                <TextBlock x:Name="TxtStatus" 
+                           Text="Đang chuẩn bị..."
+                           FontSize="12"
+                           Foreground="#5f6368"
+                           Margin="0,10,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Current Status -->
+        <Border Grid.Row="3" 
+                Background="White"
+                CornerRadius="8"
+                Padding="15">
+            <StackPanel>
+                <TextBlock Text="📊 Trạng Thái Hiện Tại" 
+                           FontSize="14" 
+                           FontWeight="SemiBold" 
+                           Foreground="#202124"
+                           Margin="0,0,0,10"/>
+                <TextBlock x:Name="TxtCurrentSize" 
+                           Text="Dung lượng đã tải: 0 MB"
+                           Foreground="#5f6368"
+                           Margin="0,0,0,5"/>
+                <TextBlock x:Name="TxtTilesCount" 
+                           Text="Số tiles: 0"
+                           Foreground="#5f6368"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="4" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right"
+                    Margin="0,15,0,0">
+            <Button x:Name="BtnDownload"
+                    Content="📥 Tải Xuống"
+                    Width="120"
+                    Height="40"
+                    Background="#34a853"
+                    Foreground="White"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Margin="0,0,10,0"
+                    Click="BtnDownload_Click">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}"
+                                            CornerRadius="8"
+                                            Padding="15,10">
+                                        <ContentPresenter HorizontalAlignment="Center" 
+                                                        VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2d8e47"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <Button x:Name="BtnClear"
+                    Content="🗑️ Xóa"
+                    Width="100"
+                    Height="40"
+                    Background="#ea4335"
+                    Foreground="White"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Margin="0,0,10,0"
+                    Click="BtnClear_Click">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}"
+                                            CornerRadius="8"
+                                            Padding="15,10">
+                                        <ContentPresenter HorizontalAlignment="Center" 
+                                                        VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#c5392b"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <Button x:Name="BtnClose"
+                    Content="Đóng"
+                    Width="100"
+                    Height="40"
+                    Background="#5f6368"
+                    Foreground="White"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Click="BtnClose_Click">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}"
+                                            CornerRadius="8"
+                                            Padding="15,10">
+                                        <ContentPresenter HorizontalAlignment="Center" 
+                                                        VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#4a4f54"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

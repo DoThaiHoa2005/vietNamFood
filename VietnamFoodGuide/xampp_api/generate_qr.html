@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo Mã QR Test - Vietnam Food Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .qr-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        #qrcode {
+            display: inline-block;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h3 {
+            color: #1976D2;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .code-display {
+            background: #2c3e50;
+            color: #2ecc71;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+            word-break: break-all;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .instructions {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .instructions h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Tạo Mã QR Test</h1>
+        <p class="subtitle">Vietnam Food Guide - QR Scanner Testing</p>
+
+        <div class="qr-section">
+            <div id="qrcode"></div>
+        </div>
+
+        <div class="info-box">
+            <h3>📱 Mã QR Code</h3>
+            <div class="code-display" id="qrCodeText">VFG-TEST-2024</div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-primary" onclick="downloadQR()">📥 Tải xuống QR</button>
+            <button class="btn-secondary" onclick="printQR()">🖨️ In mã QR</button>
+        </div>
+
+        <div class="instructions">
+            <h3>📋 Hướng dẫn test</h3>
+            <ol>
+                <li>Mở app <strong>Vietnam Food Guide</strong></li>
+                <li>Bấm vào nút <strong>"Quét QR"</strong> hoặc banner QR</li>
+                <li>Quét mã QR này bằng camera</li>
+                <li>Kiểm tra xem app có hiển thị thông báo thành công không</li>
+                <li>Vào <strong>Admin Dashboard</strong> để xem số lượng QR đã quét</li>
+            </ol>
+        </div>
+
+        <div class="info-box" style="background: #f3e5f5; border-left-color: #9c27b0;">
+            <h3>🔍 Kiểm tra kết quả</h3>
+            <p>
+                Sau khi quét QR, mở <strong>admin_dashboard.html</strong> để xem:<br>
+                • Số lượng người đã quét QR<br>
+                • Thông tin device đã quét<br>
+                • Thời gian quét
+            </p>
+        </div>
+
+        <div class="footer">
+            Vietnam Food Guide © 2024 | QR Test Generator
+        </div>
+    </div>
+
+    <!-- QRCode.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <script>
+        // Tạo mã QR
+        const qrText = "VFG-TEST-2024";
+        const qrcode = new QRCode(document.getElementById("qrcode"), {
+            text: qrText,
+            width: 256,
+            height: 256,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        // Tải xuống QR
+        function downloadQR() {
+            const canvas = document.querySelector('#qrcode canvas');
+            if (canvas) {
+                const url = canvas.toDataURL("image/png");
+                const link = document.createElement('a');
+                link.download = 'VFG-QR-Test.png';
+                link.href = url;
+                link.click();
+            }
+        }
+
+        // In QR
+        function printQR() {
+            const printWindow = window.open('', '', 'width=600,height=600');
+            const canvas = document.querySelector('#qrcode canvas');
+            if (canvas) {
+                const url = canvas.toDataURL("image/png");
+                printWindow.document.write(`
+                    <html>
+                    <head>
+                        <title>In Mã QR - Vietnam Food Guide</title>
+                        <style>
+                            body {
+                                display: flex;
+                                flex-direction: column;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100vh;
+                                margin: 0;
+                                font-family: Arial, sans-serif;
+                            }
+                            h1 {
+                                color: #667eea;
+                                margin-bottom: 20px;
+                            }
+                            img {
+                                border: 2px solid #667eea;
+                                padding: 20px;
+                                border-radius: 10px;
+                            }
+                            p {
+                                margin-top: 20px;
+                                color: #666;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>🎯 Vietnam Food Guide - QR Test</h1>
+                        <img src="${url}" />
+                        <p><strong>Mã:</strong> ${qrText}</p>
+                        <p>Quét mã này để test chức năng QR Scanner</p>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 250);
+            }
+        }
+    </script>
+</body>
+</html>

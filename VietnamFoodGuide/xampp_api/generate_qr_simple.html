@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo QR Code - Vietnam Food Guide</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            text-align: left;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #qrcode {
+            margin: 30px auto;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            display: inline-block;
+        }
+        
+        #qrcode canvas,
+        #qrcode img {
+            border-radius: 10px;
+        }
+        
+        .download-btn {
+            background: #34a853;
+            margin-top: 15px;
+        }
+        
+        .download-btn:hover {
+            background: #2d8e47;
+        }
+        
+        .info-box {
+            background: #e8f5e9;
+            border-left: 4px solid #34a853;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        
+        .info-box h3 {
+            color: #2d8e47;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .info-box p {
+            color: #555;
+            font-size: 13px;
+            line-height: 1.6;
+            margin: 5px 0;
+        }
+        
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .preset-btn {
+            background: #f0f0f0;
+            color: #333;
+            padding: 10px;
+            font-size: 14px;
+        }
+        
+        .preset-btn:hover {
+            background: #e0e0e0;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍜 Tạo QR Code</h1>
+        <p class="subtitle">Vietnam Food Guide - Test QR Scanner</p>
+        
+        <div class="preset-buttons">
+            <button class="preset-btn" onclick="usePreset('VFG-TEST-2024')">📱 Test Code</button>
+            <button class="preset-btn" onclick="usePreset('VFG-PROMO-50OFF')">🎁 Promo Code</button>
+            <button class="preset-btn" onclick="usePreset('VFG-USER-' + Date.now())">👤 User Code</button>
+            <button class="preset-btn" onclick="usePreset('https://vfg.app/menu')">🔗 Website Link</button>
+        </div>
+        
+        <div class="input-group">
+            <label for="qrText">Nội dung QR Code:</label>
+            <input type="text" id="qrText" placeholder="Nhập text hoặc URL..." value="VFG-TEST-2024">
+        </div>
+        
+        <button onclick="generateQR()">🎨 Tạo QR Code</button>
+        
+        <div id="qrcode"></div>
+        
+        <button id="downloadBtn" class="download-btn hidden" onclick="downloadQR()">
+            💾 Tải xuống QR Code
+        </button>
+        
+        <div class="info-box">
+            <h3>📋 Hướng dẫn sử dụng:</h3>
+            <p><strong>1.</strong> Nhập nội dung bạn muốn mã hóa (text, URL, số...)</p>
+            <p><strong>2.</strong> Bấm "Tạo QR Code" để tạo mã</p>
+            <p><strong>3.</strong> Bấm "Tải xuống" để lưu ảnh QR</p>
+            <p><strong>4.</strong> Mở app VietnamFoodGuide và quét QR này</p>
+            <p><strong>💡 Tip:</strong> QR code càng ít ký tự càng dễ quét!</p>
+        </div>
+    </div>
+
+    <script>
+        let currentQRCode = null;
+        
+        function usePreset(text) {
+            document.getElementById('qrText').value = text;
+            generateQR();
+        }
+        
+        function generateQR() {
+            const text = document.getElementById('qrText').value.trim();
+            
+            if (!text) {
+                alert('⚠️ Vui lòng nhập nội dung QR Code!');
+                return;
+            }
+            
+            // Clear previous QR
+            const qrcodeDiv = document.getElementById('qrcode');
+            qrcodeDiv.innerHTML = '';
+            
+            // Generate new QR with high quality settings
+            currentQRCode = new QRCode(qrcodeDiv, {
+                text: text,
+                width: 256,
+                height: 256,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H  // Highest error correction
+            });
+            
+            // Show download button
+            document.getElementById('downloadBtn').classList.remove('hidden');
+            
+            console.log('✅ QR Code generated:', text);
+        }
+        
+        function downloadQR() {
+            const canvas = document.querySelector('#qrcode canvas');
+            if (!canvas) {
+                alert('⚠️ Chưa có QR Code để tải!');
+                return;
+            }
+            
+            // Convert canvas to blob
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'qrcode-vfg-' + Date.now() + '.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                console.log('✅ QR Code downloaded');
+            });
+        }
+        
+        // Generate default QR on load
+        window.addEventListener('load', function() {
+            generateQR();
+        });
+        
+        // Allow Enter key to generate
+        document.getElementById('qrText').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateQR();
+            }
+        });
+    </script>
+</body>
+</html>
